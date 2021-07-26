@@ -10,6 +10,7 @@ class DapsClient {
     #default_daps_vc_host     = "";
     #default_token_context    = "https://w3id.org/idsa/contexts/context.jsonld";
     #default_token_expiration = (60 * 1); //REM one minute in seconds
+    #subject                  = undefined; // REM: JWT.sub / JWT.iss, source = skiaki
     #default_scope            = "ids_connector_attributes"; //REM one minute in seconds
 
     constructor({
@@ -18,6 +19,7 @@ class DapsClient {
                     'daps_vc_path':     daps_vc_path = undefined,
                     'token_context':    token_context = undefined,
                     'token_expiration': token_expiration = undefined,
+                    'subject':          subject = undefined,
                     'scope':            scope = undefined
                 }
     ) {
@@ -31,6 +33,8 @@ class DapsClient {
             this.#default_token_context = token_context;
         if (token_expiration)
             this.#default_token_expiration = token_expiration;
+        if (subject) // REM : source = skiaki
+            this.#subject = subject;
         if (scope)
             this.#default_scope = scope;
     } // constructor
@@ -38,11 +42,10 @@ class DapsClient {
     async getDAT({
                      'daps_host':       daps_host = undefined,
                      'daps_token_path': daps_token_path = undefined,
-                     'skiaki':          skiaki,
-                     'context':         context,
-                     'subject':         subject = undefined, // REM: JWT.sub
+                     'context':         context = undefined,
+                     'subject':         subject = undefined, // REM: JWT.sub AND JWT.iat, source = skiaki
                      'audience':        audience = undefined,
-                     'expiration':      expiration,
+                     'expiration':      expiration = undefined,
                      'validNotBefore':  validNotBefore = undefined, // REM: JWT.nbf
                      'scope':           scope = undefined
                  }) {
@@ -66,10 +69,15 @@ class DapsClient {
 
             daps_token_path = (daps_token_path || this.#default_daps_token_path);
 
-            subject        = (subject || skiaki); // REM: JWT.sub
+            // REM: source = skiaki
+            subject = (subject || this.#subject);
+            if (!subject)
+                throw (new Error(`DapsClient.getDAT : 'subject' is missing.`));
+
             validNotBefore = (validNotBefore || iat);
             expiration     = (expiration || this.#default_token_expiration);
 
+            token['iss'] = subject;
             token['sub'] = subject;
             if (audience)
                 token['aud'] = audience;
