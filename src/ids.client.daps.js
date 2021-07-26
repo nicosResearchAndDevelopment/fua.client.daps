@@ -17,7 +17,7 @@ class DapsClient {
                     'daps_token_path':  daps_token_path = undefined,
                     'daps_vc_path':     daps_vc_path = undefined,
                     'token_context':    token_context = undefined,
-                    'token_expiration': token_expiration = undefined
+                    'token_expiration': token_expiration = undefined,
                     'scope':            scope = undefined
                 }
     ) {
@@ -116,6 +116,17 @@ class DapsClient {
             throw jex;
         } // try
     } // getDAT
+
+    async getVC() {
+        try {
+            let VC = {}
+            ;
+            return VC;
+        } catch (jex) {
+            throw jex;
+        } // try
+    } // getVC()
+
 } // class DapsClient
 
 exports.DapsClient = DapsClient;
