@@ -1,4 +1,5 @@
 const
+    hrt   = require("core.hrtn"),
     fetch = require("node-fetch")
 ;
 
@@ -7,14 +8,22 @@ class DapsClient {
     #default_daps_host        = "";
     #default_daps_token_path  = "/token";
     #default_daps_vc_path     = "/vc";
-    #default_daps_vc_host     = "";
     #default_token_context    = "https://w3id.org/idsa/contexts/context.jsonld";
     #default_token_expiration = (60 * 1); //REM one minute in seconds
     #subject                  = undefined; // REM: JWT.sub / JWT.iss, source = skiaki
     #default_scope            = "ids_connector_attributes"; //REM one minute in seconds
 
     constructor({
-                    'daps_host':        daps_host = undefined,
+                    'daps_host':  daps_host = undefined,
+                    'credential': credential = {
+                        '@id': "https://localhost/domain/credential#nrd_daps",
+                        '@type': "domain:CredentialDapsAuthentication",
+                        //'@type': "domain:BasicAtuhCredential",
+                        'host': "https://daps.nicos-rd.com/token",
+                        //'name': "https://gbx.nicos-rd.com",
+                        'name': "sd:sdf:df:keyid:df:df:df" // REM: skiaki, used as JWT.sub and JWT.iss
+                    },
+                    //
                     'daps_token_path':  daps_token_path = undefined,
                     'daps_vc_path':     daps_vc_path = undefined,
                     'token_context':    token_context = undefined,
@@ -49,9 +58,12 @@ class DapsClient {
                      'validNotBefore':  validNotBefore = undefined, // REM: JWT.nbf
                      'scope':           scope = undefined
                  }) {
+
         try {
             let
+                // TODO: get from module 'time' OR 'core.hrt''
                 iat   = Math.round(Date.now() / 1000), // REM: JWT.iat
+                //iat = hrt()
                 token = {
                     '@context': (context || this.#default_token_context),
                     '@type':    "ids:DatRequestToken",
@@ -77,8 +89,8 @@ class DapsClient {
             validNotBefore = (validNotBefore || iat);
             expiration     = (expiration || this.#default_token_expiration);
 
-            token['iss'] = subject;
-            token['sub'] = subject;
+            token['iss'] = subject; // skiaki
+            token['sub'] = subject; // skiaki
             if (audience)
                 token['aud'] = audience;
             token['nbf'] = validNotBefore;
@@ -137,4 +149,4 @@ class DapsClient {
 
 } // class DapsClient
 
-exports.DapsClient = DapsClient;
+module.exports = DapsClient;
