@@ -1,5 +1,5 @@
 const
-
+    crypto    = require("crypto"),
     {SignJWT} = require('jose/jwt/sign')
 ;
 
