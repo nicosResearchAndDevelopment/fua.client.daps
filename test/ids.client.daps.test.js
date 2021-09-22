@@ -1,9 +1,9 @@
 const
     {describe, test} = require('mocha'),
     expect           = require('expect'),
-    DAPSClient       = require('./ids.client.daps.js'),
+    DAPSClient       = require('../src/ids.client.daps.js'),
     certs            = require('./cert'),
-    crypto           = require("crypto");
+    crypto           = require('crypto');
 
 describe('ids.client.daps', function () {
 

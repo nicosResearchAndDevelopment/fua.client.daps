@@ -1,0 +1,32 @@
+{
+  "name": "@nrd/fua.ids.client.daps",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/ids.client.daps.js",
+  "files": [
+    "src/*"
+  ],
+  "dependencies": {
+    "@nrd/fua.core.util": "1.0.0",
+    "node-fetch": "^2.6.2",
+    "jose": "^3.14.4"
+  },
+  "devDependencies": {
+    "mocha": "^8.2.1",
+    "expect": "^26.6.2"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "mocha": {
+    "bail": false,
+    "recursive": false,
+    "spec": "test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ssh://git@git02.int.nsc.ag:10022/Research/fua/lib/ids/ids.client.daps.git"
+  },
+  "author": "spetrac@nicos-ag.com",
+  "license": "UNLICENSED"
+}
