@@ -1,7 +1,7 @@
 const
-    _util                  = require('@nrd/fua.core.util'),
-    {KeyObject}            = require('crypto'),
-    util                   = {
+    _util                   = require('@nrd/fua.core.util'),
+    {KeyObject}             = require('crypto'),
+    util                    = {
         ..._util,
         assert:           _util.Assert('ids.client.daps'),
         isSKI:            _util.StringValidator(/^(?:[0-9a-f]{2}(?::|$)){20}(?=$)/i),
@@ -11,23 +11,34 @@ const
         isPrivateKey:     (value) => (value instanceof KeyObject) && value.type === 'private',
         isRequestAgent:   (value) => _util.isObject(value) && _util.isFunction(value.addRequest) && _util.isFunction(value.createConnection)
     },
-    EventEmitter           = require('events'),
-    {URL, URLSearchParams} = require('url'),
-    fetch                  = require('node-fetch'),
-    {SignJWT}              = require('jose/jwt/sign'),
-    {decode}               = require('jose/util/base64url');
+    EventEmitter            = require('events'),
+    {URL, URLSearchParams}  = require('url'),
+    fetch                   = require('node-fetch'),
+    {SignJWT}               = require('jose/jwt/sign'),
+    {jwtVerify}             = require('jose/jwt/verify'),
+    {decodeProtectedHeader} = require('jose/util/decode_protected_header'),
+    {parseJwk}              = require('jose/jwk/parse');
 
 //region >> TYPEDEF
 /**
  * @typedef {{"@context": "https://w3id.org/idsa/contexts/context.jsonld", "@type": "DatRequestPayload", iss: string, sub: string, aud: string, exp: number, nbf: number, iat: number}} DatRequestPayload
+ * @see https://github.com/International-Data-Spaces-Association/IDS-G/blob/main/Components/IdentityProvider/DAPS/README.md#request-token-that-is-handed-in-at-daps-side Request token that is handed in at DAPS side
  */ /**
  * @typedef {string} DatRequestToken
  */ /**
  * @typedef {string} DatRequestQuery
+ * @see https://github.com/International-Data-Spaces-Association/IDS-G/blob/main/Components/IdentityProvider/DAPS/README.md#request-call-to-get-a-token Request call to get a token
  */ /**
- * @typedef {{"@context": "https://w3id.org/idsa/contexts/context.jsonld", "@type": "DatPayload", iss: string, sub: string, aud: string, exp: number, nbf: number, iat: number, scope: string | Array<string>, securityProfile: string, referringConnector?: string, transportCertsSha256?: string | Array<string>, extendedGuarantee?: string}} DatPayload
+ * @typedef {{"@context": "https://w3id.org/idsa/contexts/context.jsonld", "@type": "DatPayload", iss: string, sub: string, aud: string, exp: number, nbf: number, iat: number, scope: Array<string>, securityProfile: string, referringConnector?: string, transportCertsSha256?: string | Array<string>, extendedGuarantee?: string}} DatPayload
+ * @see https://github.com/International-Data-Spaces-Association/IDS-G/blob/main/Components/IdentityProvider/DAPS/README.md#dynamic-attribute-token-content Dynamic Attribute Token Content
  */ /**
  * @typedef {string} DynamicAttributeToken
+ */ /**
+ * @typedef {{kty: string, use?: "sig" | "enc", key_ops?: Array<"sign" | "verify" | "encrypt" | "decrypt" | "wrapKey" | "unwrapKey" | "deriveKey" | "deriveBits">, alg?: string, kid?: string, x5u?: string, x5c?: Array<string>, x5t?: string, "x5t#S256"?: string, k?: string, n?: string, e?: string, d?: string, crv?: string, x?: string, y?: string, p?: string, q?: string, dp?: string, dq?: string, qi?: string}} JsonWebKey
+ * @see https://datatracker.ietf.org/doc/html/rfc7517#section-4 JSON Web Key (JWK) Format
+ */ /**
+ * @typedef {{keys: Array<JsonWebKey>}} JsonWebKeySet
+ * @see https://datatracker.ietf.org/doc/html/rfc7517#section-5 JWK Set Format
  */
 //endregion >> TYPEDEF
 
@@ -42,6 +53,8 @@ module.exports = class DAPSAgent extends EventEmitter {
     #assertion_expiration = 300;
     #assertion_audience   = 'http://localhost:4567'; // 'idsc:IDS_CONNECTORS_ALL' | 'ALL'
     #assertion_scope      = 'IDS_CONNECTOR_ATTRIBUTES_ALL'; // 'idsc:IDS_CONNECTOR_ATTRIBUTES_ALL'
+
+    #last_jwks = null;
 
     /**
      * @param {Object} param
@@ -197,7 +210,10 @@ module.exports = class DAPSAgent extends EventEmitter {
         return dynamicAttributeToken;
     } // DAPSAgent#fetchDat
 
-    async fetchJwks(param) {
+    /**
+     * @returns {Promise<JsonWebKeySet>}
+     */
+    async fetchJwks() {
         const
             requestUrl = new URL('/.well-known/jwks.json', this.#daps_url).toString(),
             response   = await fetch(requestUrl);
@@ -208,6 +224,8 @@ module.exports = class DAPSAgent extends EventEmitter {
             jwks = await response.json();
 
         util.assert(util.isArray(jwks?.keys), 'DAPSAgent#fetchJwks : expected jwks to have a keys array');
+        util.freezeAllProp(jwks, Infinity);
+        this.#last_jwks = jwks;
 
         return jwks;
     } // DAPSAgent#fetchJWKS
@@ -218,7 +236,25 @@ module.exports = class DAPSAgent extends EventEmitter {
      */
     async validateDat(dynamicAttributeToken) {
         util.assert(util.isNonEmptyString(dynamicAttributeToken), 'DAPSAgent#validateDat : expected dynamicAttributeToken to be a non empty string');
-        // TODO
+
+        const
+            jwks   = this.#last_jwks || await this.fetchJwks(),
+            header = decodeProtectedHeader(dynamicAttributeToken),
+            jwk    = header.kid ? jwks.keys.find(entry => header.kid === entry.kid) : jwks.keys.length === 1 ? jwks.keys[0] : undefined;
+
+        util.assert(jwk, 'DAPSAgent#validateDat : jwk could not be selected');
+
+        const
+            publicKey     = await parseJwk(jwk, header.alg),
+            verifyOptions = {
+                issuer:  this.#daps_url,
+                subject: this.#assertion_subject
+            },
+            {payload}     = await jwtVerify(dynamicAttributeToken, publicKey, verifyOptions);
+
+        return payload;
     } // DAPSAgent#validateDat
+
+    // TODO createTlsAgent or something like that
 
 };

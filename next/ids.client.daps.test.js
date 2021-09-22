@@ -47,4 +47,18 @@ describe('ids.client.daps', function () {
         console.log(jwks);
     });
 
+    test('the daps client should be able to validate the dat it got from the daps', async function () {
+        const
+            dapsClient = new DAPSClient({
+                dapsUrl:    'http://localhost:4567',
+                SKI:        'DD:CB:FD:0B:93:84:33:01:11:EB:5D:94:94:88:BE:78:7D:57:FC:4A',
+                AKI:        'keyid:CB:8C:C7:B6:85:79:A8:23:A6:CB:15:AB:17:50:2F:E6:65:43:5D:E8',
+                privateKey: crypto.createPrivateKey(certs.client.private)
+            }),
+            dat        = await dapsClient.fetchDat(),
+            content    = await dapsClient.validateDat(dat);
+        expect(typeof content).toBe('object');
+        console.log(content);
+    });
+
 }); // describe
