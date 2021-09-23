@@ -4,8 +4,10 @@ const
     util                    = {
         ..._util,
         assert:           _util.Assert('ids.client.daps'),
-        isSKI:            _util.StringValidator(/^(?:[0-9a-f]{2}(?::|$)){20}(?=$)/i),
-        isAKI:            _util.StringValidator(/^keyid:(?:[0-9a-f]{2}(?::|$)){20}(?=$)/i),
+
+        //isSKI:            _util.StringValidator(/^(?:[0-9a-f]{2}(?::|$)){20}(?=$)/i),
+        //isAKI:            _util.StringValidator(/^keyid:(?:[0-9a-f]{2}(?::|$)){20}(?=$)/i),
+        isSKIAKI:            _util.StringValidator(/^(?:[0-9a-f]{2}(?::|$)){20}(?=$):keyid:(?:[0-9a-f]{2}(?::|$)){20}(?=$)/i),
         isNonEmptyString: _util.StringValidator(/^\S+$/),
         isExpiration:     (value) => _util.isInteger(value) && value > 0,
         isPrivateKey:     (value) => (value instanceof KeyObject) && value.type === 'private',
@@ -68,8 +70,8 @@ module.exports = class DAPSAgent extends EventEmitter {
      */
     constructor(param) {
         util.assert(util.isObject(param), 'DAPSAgent#constructor : expected param to be an object', TypeError);
-        util.assert(util.isSKI(param.SKI), 'DAPSAgent#constructor : expected param.SKI to be a string', TypeError);
-        util.assert(util.isAKI(param.AKI), 'DAPSAgent#constructor : expected param.AKI to be a string', TypeError);
+        util.assert(util.isSKIAKI(param.SKIAKI), 'DAPSAgent#constructor : expected param.SKI to be a string', TypeError);
+        //util.assert(util.isAKI(param.AKI), 'DAPSAgent#constructor : expected param.AKI to be a string', TypeError);
         util.assert(util.isString(param.dapsUrl), 'DAPSAgent#constructor : expected param.dapsUrl to be a string', TypeError);
         util.assert(util.isPrivateKey(param.privateKey), 'DAPSAgent#constructor : expected param.privateKey to be a private KeyObject', TypeError);
         util.assert(util.isNull(param.algorithm) || util.isNonEmptyString(param.algorithm),
@@ -82,7 +84,8 @@ module.exports = class DAPSAgent extends EventEmitter {
         super();
 
         this.#daps_url          = param.dapsUrl;
-        this.#assertion_subject = param.SKI + ':' + param.AKI;
+        //this.#assertion_subject = param.SKI + ':' + param.AKI;
+        this.#assertion_subject = param.SKIAKI;
         this.#private_key       = param.privateKey;
         if (param.expiration) this.#assertion_expiration = param.expiration;
         if (param.algorithm) this.#assertion_algorithm = param.algorithm;
