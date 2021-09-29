@@ -56,7 +56,9 @@ module.exports = class DAPSAgent extends EventEmitter {
     #assertion_audience   = 'http://localhost:4567'; // 'idsc:IDS_CONNECTORS_ALL' | 'ALL'
     #assertion_scope      = 'IDS_CONNECTOR_ATTRIBUTES_ALL'; // 'idsc:IDS_CONNECTOR_ATTRIBUTES_ALL'
 
-    #last_jwks = null;
+    #jwks         = null;
+    #jwks_created = 0;
+    #jwks_maxAge  = Infinity;
 
     /**
      * @param {Object} param
@@ -208,10 +210,14 @@ module.exports = class DAPSAgent extends EventEmitter {
         return dynamicAttributeToken;
     } // DAPSAgent#fetchDat
 
+    // TODO implement when it is more clear, what kind of DATs need to be managed
+    // async getDat(param) { } // DAPSAgent#getDat
+
     /**
+     * @param {Object} [param]
      * @returns {Promise<JsonWebKeySet>}
      */
-    async fetchJwks() {
+    async fetchJwks(param) {
         const
             requestUrl = new URL('/.well-known/jwks.json', this.#daps_url).toString(),
             response   = await fetch(requestUrl);
@@ -223,20 +229,39 @@ module.exports = class DAPSAgent extends EventEmitter {
 
         util.assert(util.isArray(jwks?.keys), 'DAPSAgent#fetchJwks : expected jwks to have a keys array');
         util.freezeAllProp(jwks, Infinity);
-        this.#last_jwks = jwks;
+        this.#jwks         = jwks;
+        this.#jwks_created = 1e-3 * Date.now();
 
         return jwks;
     } // DAPSAgent#fetchJWKS
 
     /**
+     * @param {Object} [param]
+     * @param {number} [param.maxAge]
+     * @returns {Promise<JsonWebKeySet>}
+     */
+    async getJwks(param) {
+        util.assert(util.isNull(param?.maxAge) || util.isExpiration(param.maxAge),
+            'DAPSAgent#getJwks : expected param.maxAge to be an integer greater than 0', TypeError);
+
+        const
+            age    = 1e-3 * Date.now() - this.#jwks_created,
+            maxAge = param?.maxAge ?? this.#jwks_maxAge;
+
+        return age <= maxAge && this.#jwks || await this.fetchJwks(param);
+    } // DAPSAgent#getJwks
+
+    /**
      * @param {DynamicAttributeToken} dynamicAttributeToken
+     * @param {Object} [param]
+     * @param {number} [param.maxAge]
      * @returns {Promise<DatPayload>}
      */
-    async validateDat(dynamicAttributeToken) {
+    async validateDat(dynamicAttributeToken, param) {
         util.assert(util.isNonEmptyString(dynamicAttributeToken), 'DAPSAgent#validateDat : expected dynamicAttributeToken to be a non empty string');
 
         const
-            jwks   = this.#last_jwks || await this.fetchJwks(),
+            jwks   = await this.getJwks(param),
             header = decodeProtectedHeader(dynamicAttributeToken),
             jwk    = header.kid ? jwks.keys.find(entry => header.kid === entry.kid) : jwks.keys.length === 1 ? jwks.keys[0] : undefined;
 

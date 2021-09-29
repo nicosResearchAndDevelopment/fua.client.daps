@@ -2,65 +2,42 @@ const
     {describe, test} = require('mocha'),
     expect           = require('expect'),
     DAPSClient       = require('../src/ids.client.daps.js'),
-    certs            = require('./cert'),
-    crypto           = require('crypto');
+    _client          = require('./certs/client.js');
+
+// REM: node .\app\nrd-testbed\ec\ids\src\scripts\setup.omejdn-daps.js add-client --load .\lib\ids\ids.client.daps\test\certs\client.js
 
 describe('ids.client.daps', function () {
 
     this.timeout(10e3);
 
-    test('exported module should be a class and instantiable', function () {
+    let dapsClient;
+    before('construct a daps client', function () {
         expect(typeof DAPSClient).toBe('function');
-        const dapsClient = new DAPSClient({
-            dapsUrl: 'http://localhost:4567',
-            // SKI:        'DD:CB:FD:0B:93:84:33:01:11:EB:5D:94:94:88:BE:78:7D:57:FC:4A',
-            // AKI:        'keyid:CB:8C:C7:B6:85:79:A8:23:A6:CB:15:AB:17:50:2F:E6:65:43:5D:E8',
-            SKIAKI:     'DD:CB:FD:0B:93:84:33:01:11:EB:5D:94:94:88:BE:78:7D:57:FC:4A:keyid:CB:8C:C7:B6:85:79:A8:23:A6:CB:15:AB:17:50:2F:E6:65:43:5D:E8',
-            privateKey: crypto.createPrivateKey(certs.client.private)
+        dapsClient = new DAPSClient({
+            dapsUrl:    'http://localhost:4567',
+            SKIAKI:     _client.meta.SKIAKI,
+            privateKey: _client.privateKey
         });
         expect(dapsClient).toBeInstanceOf(DAPSClient);
         console.log(dapsClient);
-    }); // test
+    });
 
     test('the daps client should be able to fetch a new dat', async function () {
-        const
-            dapsClient = new DAPSClient({
-                dapsUrl: 'http://localhost:4567',
-                // SKI:        'DD:CB:FD:0B:93:84:33:01:11:EB:5D:94:94:88:BE:78:7D:57:FC:4A',
-                // AKI:        'keyid:CB:8C:C7:B6:85:79:A8:23:A6:CB:15:AB:17:50:2F:E6:65:43:5D:E8',
-                SKIAKI:     'DD:CB:FD:0B:93:84:33:01:11:EB:5D:94:94:88:BE:78:7D:57:FC:4A:keyid:CB:8C:C7:B6:85:79:A8:23:A6:CB:15:AB:17:50:2F:E6:65:43:5D:E8',
-                privateKey: crypto.createPrivateKey(certs.client.private)
-            }),
-            dat        = await dapsClient.fetchDat();
+        const dat = await dapsClient.fetchDat();
         expect(typeof dat).toBe('string');
         console.log(dat);
     });
 
     test('the daps client should be able to fetch the jwks', async function () {
-        const
-            dapsClient = new DAPSClient({
-                dapsUrl: 'http://localhost:4567',
-                // SKI:        'DD:CB:FD:0B:93:84:33:01:11:EB:5D:94:94:88:BE:78:7D:57:FC:4A',
-                // AKI:        'keyid:CB:8C:C7:B6:85:79:A8:23:A6:CB:15:AB:17:50:2F:E6:65:43:5D:E8',
-                SKIAKI:     'DD:CB:FD:0B:93:84:33:01:11:EB:5D:94:94:88:BE:78:7D:57:FC:4A:keyid:CB:8C:C7:B6:85:79:A8:23:A6:CB:15:AB:17:50:2F:E6:65:43:5D:E8',
-                privateKey: crypto.createPrivateKey(certs.client.private)
-            }),
-            jwks       = await dapsClient.fetchJwks();
+        const jwks = await dapsClient.fetchJwks();
         expect(Array.isArray(jwks?.keys)).toBeTruthy();
         console.log(jwks);
     });
 
     test('the daps client should be able to validate the dat it got from the daps', async function () {
         const
-            dapsClient = new DAPSClient({
-                dapsUrl: 'http://localhost:4567',
-                // SKI:        'DD:CB:FD:0B:93:84:33:01:11:EB:5D:94:94:88:BE:78:7D:57:FC:4A',
-                // AKI:        'keyid:CB:8C:C7:B6:85:79:A8:23:A6:CB:15:AB:17:50:2F:E6:65:43:5D:E8',
-                SKIAKI:     'DD:CB:FD:0B:93:84:33:01:11:EB:5D:94:94:88:BE:78:7D:57:FC:4A:keyid:CB:8C:C7:B6:85:79:A8:23:A6:CB:15:AB:17:50:2F:E6:65:43:5D:E8',
-                privateKey: crypto.createPrivateKey(certs.client.private)
-            }),
-            dat        = await dapsClient.fetchDat(),
-            content    = await dapsClient.validateDat(dat);
+            dat     = await dapsClient.fetchDat(),
+            content = await dapsClient.validateDat(dat);
         expect(typeof content).toBe('object');
         console.log(content);
     });
