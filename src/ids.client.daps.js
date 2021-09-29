@@ -53,7 +53,7 @@ module.exports = class DAPSAgent extends EventEmitter {
     #assertion_algorithm  = 'RS256';
     #assertion_subject    = '';
     #assertion_expiration = 300;
-    #assertion_audience   = 'http://localhost:4567'; // 'idsc:IDS_CONNECTORS_ALL' | 'ALL'
+    #assertion_audience   = 'IDS_CONNECTORS_ALL'; // 'idsc:IDS_CONNECTORS_ALL'
     #assertion_scope      = 'IDS_CONNECTOR_ATTRIBUTES_ALL'; // 'idsc:IDS_CONNECTOR_ATTRIBUTES_ALL'
 
     #jwks         = null;
@@ -107,7 +107,7 @@ module.exports = class DAPSAgent extends EventEmitter {
                 '@type':    'DatRequestPayload', // 'ids:DatRequestToken'
                 iss:        this.#assertion_subject,
                 sub:        this.#assertion_subject,
-                aud:        this.#assertion_audience,
+                aud:        this.#daps_url,
                 exp:        now + (param?.expiration ?? this.#assertion_expiration),
                 nbf:        now,
                 iat:        now
