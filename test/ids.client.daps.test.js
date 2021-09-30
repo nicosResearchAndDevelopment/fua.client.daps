@@ -22,24 +22,36 @@ describe('ids.client.daps', function () {
         console.log(dapsClient);
     });
 
-    test('the daps client should be able to fetch a new dat', async function () {
-        const dat = await dapsClient.fetchDat();
+    // test('the daps client should be able to fetch a new dat', async function () {
+    //     const dat = await dapsClient.fetchDat();
+    //     expect(typeof dat).toBe('string');
+    //     console.log(dat);
+    // });
+    //
+    // test('the daps client should be able to fetch the jwks', async function () {
+    //     const jwks = await dapsClient.fetchJwks();
+    //     expect(Array.isArray(jwks?.keys)).toBeTruthy();
+    //     console.log(jwks);
+    // });
+    //
+    // test('the daps client should be able to validate the dat it got from the daps', async function () {
+    //     const
+    //         dat     = await dapsClient.fetchDat(),
+    //         content = await dapsClient.validateDat(dat);
+    //     expect(typeof content).toBe('object');
+    //     console.log(content);
+    // });
+
+    test('the daps client should be able to get a dat', async function () {
+        const dat = await dapsClient.getDat();
         expect(typeof dat).toBe('string');
         console.log(dat);
     });
 
-    test('the daps client should be able to fetch the jwks', async function () {
-        const jwks = await dapsClient.fetchJwks();
+    test('the daps client should be able to get the jwks', async function () {
+        const jwks = await dapsClient.getJwks();
         expect(Array.isArray(jwks?.keys)).toBeTruthy();
         console.log(jwks);
-    });
-
-    test('the daps client should be able to validate the dat it got from the daps', async function () {
-        const
-            dat     = await dapsClient.fetchDat(),
-            content = await dapsClient.validateDat(dat);
-        expect(typeof content).toBe('object');
-        console.log(content);
     });
 
 }); // describe

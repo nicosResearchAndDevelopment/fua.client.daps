@@ -53,12 +53,16 @@ module.exports = class DAPSAgent extends EventEmitter {
     #assertion_algorithm  = 'RS256';
     #assertion_subject    = '';
     #assertion_expiration = 300;
-    #assertion_audience   = 'IDS_CONNECTORS_ALL'; // 'idsc:IDS_CONNECTORS_ALL'
-    #assertion_scope      = 'IDS_CONNECTOR_ATTRIBUTES_ALL'; // 'idsc:IDS_CONNECTOR_ATTRIBUTES_ALL'
+    #assertion_audience   = 'idsc:IDS_CONNECTORS_ALL';
+    #assertion_scope      = 'idsc:IDS_CONNECTOR_ATTRIBUTES_ALL';
 
     #jwks         = null;
     #jwks_created = 0;
     #jwks_maxAge  = Infinity;
+
+    #dat             = '';
+    #dat_issuedAt    = 0;
+    #dat_minLifespan = 0;
 
     /**
      * @param {Object} param
@@ -203,15 +207,39 @@ module.exports = class DAPSAgent extends EventEmitter {
 
         const
             result                = await response.json(),
-            dynamicAttributeToken = result.access_token;
+            dynamicAttributeToken = result.access_token,
+            datPayload            = await this.validateDat(dynamicAttributeToken, param);
 
-        util.assert(util.isNonEmptyString(dynamicAttributeToken), 'DAPSAgent#fetchDat : expected dynamicAttributeToken to be a non empty string');
+        util.assert(datPayload.iss === this.#daps_url, 'DAPSAgent#fetchDat : expected issuer of the dat to be the daps');
+        util.assert(datPayload.sub === this.#assertion_subject, 'DAPSAgent#fetchDat : expected subject of the dat to be the client');
+
+        this.#dat          = dynamicAttributeToken;
+        this.#dat_issuedAt = datPayload.iss;
 
         return dynamicAttributeToken;
     } // DAPSAgent#fetchDat
 
-    // TODO implement when it is more clear, what kind of DATs need to be managed
-    // async getDat(param) { } // DAPSAgent#getDat
+    /**
+     * @param {Object} [param]
+     * @param {number} [param.expiration]
+     * @param {string} [param.algorithm]
+     * @param {DatRequestToken} [param.datRequestToken]
+     * @param {DatRequestQuery} [param.datRequestQuery]
+     * @param {number} [param.minLifespan]
+     * @returns {Promise<DynamicAttributeToken>}
+     */
+    async getDat(param) {
+        if (!this.#dat) return await this.fetchDat(param);
+
+        util.assert(util.isNull(param?.minLifespan) || util.isExpiration(param.minLifespan),
+            'DAPSAgent#getDat : expected param.minLifespan to be an integer greater than 0', TypeError);
+
+        const
+            lifespan    = 1e-3 * Date.now() - this.#dat_issuedAt,
+            minLifespan = param?.minLifespan ?? this.#dat_minLifespan;
+
+        return lifespan >= minLifespan && this.#dat || await this.fetchDat(param);
+    } // DAPSAgent#getDat
 
     /**
      * @param {Object} [param]
@@ -241,6 +269,8 @@ module.exports = class DAPSAgent extends EventEmitter {
      * @returns {Promise<JsonWebKeySet>}
      */
     async getJwks(param) {
+        if (!this.#jwks) return await this.fetchJwks(param);
+
         util.assert(util.isNull(param?.maxAge) || util.isExpiration(param.maxAge),
             'DAPSAgent#getJwks : expected param.maxAge to be an integer greater than 0', TypeError);
 
