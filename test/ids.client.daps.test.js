@@ -2,8 +2,11 @@ const
     {describe, test} = require('mocha'),
     expect           = require('expect'),
     https            = require('https'),
+    express          = require('express'),
+    fetch            = require('node-fetch'),
     DAPSClient       = require('../src/ids.client.daps.js'),
-    _client          = require('./certs/client.js');
+    _client          = require('./certs/client.js'),
+    _server          = require('./certs/server.js');
 
 // REM: node .\app\nrd-testbed\ec\ids\src\scripts\setup.omejdn-daps.js add-client --load .\lib\ids\ids.client.daps\test\certs\client.js
 
@@ -56,9 +59,26 @@ describe('ids.client.daps', function () {
     });
 
     test('the daps client should be able to construct a https agent', async function () {
-        const agent = dapsClient.createDatHttpsAgent({rejectUnauthorized: false});
-        expect(agent).toBeInstanceOf(https.Agent);
-        console.log(agent);
+        const datAgent = dapsClient.createDatHttpsAgent({
+            rejectUnauthorized: false
+        });
+        expect(datAgent).toBeInstanceOf(https.Agent);
+        const headers = await new Promise((resolve, reject) => {
+            const server = https.createServer({
+                key:  _server.key,
+                cert: _server.cert
+            }, (req, res) => {
+                res.end();
+                server.close();
+                resolve(req.headers);
+            });
+            server.listen(8081);
+            fetch('https://localhost:8081', {
+                agent: datAgent
+            }).catch(reject);
+        });
+        expect(headers.authorization).toMatch(/^Bearer \S+$/i);
+        console.log(headers.authorization);
     });
 
 }); // describe
