@@ -15,6 +15,7 @@ const
     },
     EventEmitter            = require('events'),
     {URL, URLSearchParams}  = require('url'),
+    https                   = require('https'),
     fetch                   = require('node-fetch'),
     {SignJWT}               = require('jose/jwt/sign'),
     {jwtVerify}             = require('jose/jwt/verify'),
@@ -38,31 +39,33 @@ const
  */ /**
  * @typedef {{kty: string, use?: "sig" | "enc", key_ops?: Array<"sign" | "verify" | "encrypt" | "decrypt" | "wrapKey" | "unwrapKey" | "deriveKey" | "deriveBits">, alg?: string, kid?: string, x5u?: string, x5c?: Array<string>, x5t?: string, "x5t#S256"?: string, k?: string, n?: string, e?: string, d?: string, crv?: string, x?: string, y?: string, p?: string, q?: string, dp?: string, dq?: string, qi?: string}} JsonWebKey
  * @see https://datatracker.ietf.org/doc/html/rfc7517#section-4 JSON Web Key (JWK) Format
- */ /**
+ */
+/**
  * @typedef {{keys: Array<JsonWebKey>}} JsonWebKeySet
  * @see https://datatracker.ietf.org/doc/html/rfc7517#section-5 JWK Set Format
  */
-//endregion >> TYPEDEF
+    //endregion >> TYPEDEF
 
-module.exports = class DAPSAgent extends EventEmitter {
+class DapsClient extends EventEmitter {
 
-    #daps_url      = 'http://localhost:4567';
-    #request_agent = null;
-    #private_key   = null;
-
-    #assertion_algorithm  = 'RS256';
-    #assertion_subject    = '';
-    #assertion_expiration = 300;
-    #assertion_audience   = 'idsc:IDS_CONNECTORS_ALL';
-    #assertion_scope      = 'idsc:IDS_CONNECTOR_ATTRIBUTES_ALL';
+    #daps_url       = 'http://localhost:4567';
+    #daps_httpAgent = null;
 
     #jwks         = null;
     #jwks_created = 0;
-    #jwks_maxAge  = Infinity;
+    #jwks_maxAge  = 24 * 60 * 60;
+
+    #datRequest            = '';
+    #datRequest_privateKey = null;
+    #datRequest_algorithm  = 'RS256';
+    #datRequest_subject    = '';
+    #datRequest_expiration = 5 * 60;
+    #datRequest_audience   = 'idsc:IDS_CONNECTORS_ALL';
+    #datRequest_scope      = 'idsc:IDS_CONNECTOR_ATTRIBUTES_ALL';
 
     #dat             = '';
     #dat_issuedAt    = 0;
-    #dat_minLifespan = 0;
+    #dat_minLifespan = 60;
 
     /**
      * @param {Object} param
@@ -74,26 +77,67 @@ module.exports = class DAPSAgent extends EventEmitter {
      * @param {{addRequest: Function, createConnection: Function}} [param.requestAgent]
      */
     constructor(param) {
-        util.assert(util.isObject(param), 'DAPSAgent#constructor : expected param to be an object', TypeError);
-        util.assert(util.isSKIAKI(param.SKIAKI), 'DAPSAgent#constructor : expected param.SKIAKI to be a SKI:AKI string combination', TypeError);
-        util.assert(util.isString(param.dapsUrl), 'DAPSAgent#constructor : expected param.dapsUrl to be a string', TypeError);
-        util.assert(util.isPrivateKey(param.privateKey), 'DAPSAgent#constructor : expected param.privateKey to be a private KeyObject', TypeError);
+        util.assert(util.isObject(param), 'DapsClient#constructor : expected param to be an object', TypeError);
+        util.assert(util.isSKIAKI(param.SKIAKI), 'DapsClient#constructor : expected param.SKIAKI to be a SKI:AKI string combination', TypeError);
+        util.assert(util.isString(param.dapsUrl), 'DapsClient#constructor : expected param.dapsUrl to be a string', TypeError);
+        util.assert(util.isPrivateKey(param.privateKey), 'DapsClient#constructor : expected param.privateKey to be a private KeyObject', TypeError);
         util.assert(util.isNull(param.algorithm) || util.isNonEmptyString(param.algorithm),
-            'DAPSAgent#constructor : expected param.algorithm to be a nonempty string', TypeError);
+            'DapsClient#constructor : expected param.algorithm to be a nonempty string', TypeError);
         util.assert(util.isNull(param.expiration) || util.isExpiration(param.expiration),
-            'DAPSAgent#constructor : expected param.expiration to be an integer greater than 0', TypeError);
+            'DapsClient#constructor : expected param.expiration to be an integer greater than 0', TypeError);
         util.assert(util.isNull(param.requestAgent) || util.isRequestAgent(param.requestAgent),
-            'DAPSAgent#constructor : expected param.requestAgent to be a request agent', TypeError);
+            'DapsClient#constructor : expected param.requestAgent to be a request agent', TypeError);
 
         super();
 
-        this.#daps_url          = param.dapsUrl;
-        this.#assertion_subject = param.SKIAKI;
-        this.#private_key       = param.privateKey;
-        if (param.expiration) this.#assertion_expiration = param.expiration;
-        if (param.algorithm) this.#assertion_algorithm = param.algorithm;
-        if (param.requestAgent) this.#request_agent = param.requestAgent;
-    } // DAPSAgent#constructor
+        this.#daps_url              = param.dapsUrl;
+        this.#datRequest_audience   = param.dapsUrl;
+        this.#datRequest_subject    = param.SKIAKI;
+        this.#datRequest_privateKey = param.privateKey;
+        if (param.expiration) this.#datRequest_expiration = param.expiration;
+        if (param.algorithm) this.#datRequest_algorithm = param.algorithm;
+        if (param.requestAgent) this.#daps_httpAgent = param.requestAgent;
+    } // DapsClient#constructor
+
+    /**
+     * @param {Object} [param]
+     * @returns {Promise<JsonWebKeySet>}
+     */
+    async fetchJwks(param) {
+        const
+            requestUrl = new URL('/.well-known/jwks.json', this.#daps_url).toString(),
+            response   = await fetch(requestUrl);
+
+        util.assert(response.ok, 'DapsClient#fetchJwks : [' + response.status + '] ' + response.statusText);
+
+        const
+            jwks = await response.json();
+
+        util.assert(util.isArray(jwks?.keys), 'DapsClient#fetchJwks : expected jwks to have a keys array');
+        util.freezeAllProp(jwks, Infinity);
+        this.#jwks         = jwks;
+        this.#jwks_created = 1e-3 * Date.now();
+
+        return jwks;
+    } // DapsClient#fetchJWKS
+
+    /**
+     * @param {Object} [param]
+     * @param {number} [param.maxAge]
+     * @returns {Promise<JsonWebKeySet>}
+     */
+    async getJwks(param) {
+        if (!this.#jwks) return await this.fetchJwks(param);
+
+        util.assert(util.isNull(param?.maxAge) || util.isExpiration(param.maxAge),
+            'DapsClient#getJwks : expected param.maxAge to be an integer greater than 0', TypeError);
+
+        const
+            age    = 1e-3 * Date.now() - this.#jwks_created,
+            maxAge = param?.maxAge ?? this.#jwks_maxAge;
+
+        return age <= maxAge && this.#jwks || await this.fetchJwks(param);
+    } // DapsClient#getJwks
 
     /**
      * @param {Object} [param]
@@ -102,23 +146,23 @@ module.exports = class DAPSAgent extends EventEmitter {
      */
     async createDatRequestPayload(param) {
         util.assert(util.isNull(param?.expiration) || util.isExpiration(param.expiration),
-            'DAPSAgent#createDatRequestPayload : expected param.expiration to be an integer greater than 0', TypeError);
+            'DapsClient#createDatRequestPayload : expected param.expiration to be an integer greater than 0', TypeError);
 
         const
             now     = 1e-3 * Date.now(),
             payload = {
                 '@context': 'https://w3id.org/idsa/contexts/context.jsonld',
                 '@type':    'DatRequestPayload', // 'ids:DatRequestToken'
-                iss:        this.#assertion_subject,
-                sub:        this.#assertion_subject,
+                iss:        this.#datRequest_subject,
+                sub:        this.#datRequest_subject,
                 aud:        this.#daps_url,
-                exp:        now + (param?.expiration ?? this.#assertion_expiration),
+                exp:        now + (param?.expiration ?? this.#datRequest_expiration),
                 nbf:        now,
                 iat:        now
             };
 
         return payload;
-    } // DAPSAgent#createDatRequestPayload
+    } // DapsClient#createDatRequestPayload
 
     /**
      * @param {Object} [param]
@@ -128,17 +172,17 @@ module.exports = class DAPSAgent extends EventEmitter {
      */
     async createDatRequestToken(param) {
         util.assert(util.isNull(param?.algorithm) || util.isNonEmptyString(param.algorithm),
-            'DAPSAgent#createDatRequestToken : expected param.algorithm to be a nonempty string', TypeError);
+            'DapsClient#createDatRequestToken : expected param.algorithm to be a nonempty string', TypeError);
 
         const
-            header          = {alg: param?.algorithm ?? this.#assertion_algorithm},
+            header          = {alg: param?.algorithm ?? this.#datRequest_algorithm},
             payload         = await this.createDatRequestPayload(param),
             datRequestToken = await new SignJWT(payload)
                 .setProtectedHeader(header)
-                .sign(this.#private_key);
+                .sign(this.#datRequest_privateKey);
 
         return datRequestToken;
-    } // DAPSAgent#createDatRequestToken
+    } // DapsClient#createDatRequestToken
 
     /**
      * @param {Object} [param]
@@ -149,7 +193,7 @@ module.exports = class DAPSAgent extends EventEmitter {
      */
     async createDatRequestQuery(param) {
         util.assert(util.isNull(param?.datRequestToken) || util.isNonEmptyString(param.datRequestToken),
-            'DAPSAgent#createDatRequestQuery : expected param.datRequestToken to be a nonempty string', TypeError);
+            'DapsClient#createDatRequestQuery : expected param.datRequestToken to be a nonempty string', TypeError);
 
         const
             datRequestToken = param?.datRequestToken ?? await this.createDatRequestToken(param),
@@ -157,12 +201,12 @@ module.exports = class DAPSAgent extends EventEmitter {
                 grant_type:            'client_credentials',
                 client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
                 client_assertion:      datRequestToken,
-                scope:                 this.#assertion_scope
+                scope:                 this.#datRequest_scope
             },
             requestQuery    = new URLSearchParams(queryParams).toString();
 
         return requestQuery;
-    } // DAPSAgent#createDatRequestQuery
+    } // DapsClient#createDatRequestQuery
 
     /**
      * @param {Object} [param]
@@ -174,7 +218,7 @@ module.exports = class DAPSAgent extends EventEmitter {
      */
     async createDatRequest(param) {
         util.assert(util.isNull(param?.datRequestQuery) || util.isNonEmptyString(param.datRequestQuery),
-            'DAPSAgent#createDatRequest : expected param.datRequestQuery to be a nonempty string', TypeError);
+            'DapsClient#createDatRequest : expected param.datRequestQuery to be a nonempty string', TypeError);
 
         const
             requestUrl = new URL('/token', this.#daps_url).toString(),
@@ -185,10 +229,10 @@ module.exports = class DAPSAgent extends EventEmitter {
                 body:    param?.datRequestQuery ?? await this.createDatRequestQuery(param)
             };
 
-        if (!this.#request_agent) request.agent = this.#request_agent;
+        if (!this.#daps_httpAgent) request.agent = this.#daps_httpAgent;
 
         return request;
-    } // DAPSAgent#createDatRequest
+    } // DapsClient#createDatRequest
 
     /**
      * @param {Object} [param]
@@ -203,21 +247,21 @@ module.exports = class DAPSAgent extends EventEmitter {
             request  = await this.createDatRequest(param),
             response = await fetch(request.url, request);
 
-        util.assert(response.ok, 'DAPSAgent#fetchDat : [' + response.status + '] ' + response.statusText);
+        util.assert(response.ok, 'DapsClient#fetchDat : [' + response.status + '] ' + response.statusText);
 
         const
             result                = await response.json(),
             dynamicAttributeToken = result.access_token,
             datPayload            = await this.validateDat(dynamicAttributeToken, param);
 
-        util.assert(datPayload.iss === this.#daps_url, 'DAPSAgent#fetchDat : expected issuer of the dat to be the daps');
-        util.assert(datPayload.sub === this.#assertion_subject, 'DAPSAgent#fetchDat : expected subject of the dat to be the client');
+        util.assert(datPayload.iss === this.#daps_url, 'DapsClient#fetchDat : expected issuer of the dat to be the daps');
+        util.assert(datPayload.sub === this.#datRequest_subject, 'DapsClient#fetchDat : expected subject of the dat to be the client');
 
         this.#dat          = dynamicAttributeToken;
         this.#dat_issuedAt = datPayload.iss;
 
         return dynamicAttributeToken;
-    } // DAPSAgent#fetchDat
+    } // DapsClient#fetchDat
 
     /**
      * @param {Object} [param]
@@ -232,54 +276,14 @@ module.exports = class DAPSAgent extends EventEmitter {
         if (!this.#dat) return await this.fetchDat(param);
 
         util.assert(util.isNull(param?.minLifespan) || util.isExpiration(param.minLifespan),
-            'DAPSAgent#getDat : expected param.minLifespan to be an integer greater than 0', TypeError);
+            'DapsClient#getDat : expected param.minLifespan to be an integer greater than 0', TypeError);
 
         const
             lifespan    = 1e-3 * Date.now() - this.#dat_issuedAt,
             minLifespan = param?.minLifespan ?? this.#dat_minLifespan;
 
         return lifespan >= minLifespan && this.#dat || await this.fetchDat(param);
-    } // DAPSAgent#getDat
-
-    /**
-     * @param {Object} [param]
-     * @returns {Promise<JsonWebKeySet>}
-     */
-    async fetchJwks(param) {
-        const
-            requestUrl = new URL('/.well-known/jwks.json', this.#daps_url).toString(),
-            response   = await fetch(requestUrl);
-
-        util.assert(response.ok, 'DAPSAgent#fetchJwks : [' + response.status + '] ' + response.statusText);
-
-        const
-            jwks = await response.json();
-
-        util.assert(util.isArray(jwks?.keys), 'DAPSAgent#fetchJwks : expected jwks to have a keys array');
-        util.freezeAllProp(jwks, Infinity);
-        this.#jwks         = jwks;
-        this.#jwks_created = 1e-3 * Date.now();
-
-        return jwks;
-    } // DAPSAgent#fetchJWKS
-
-    /**
-     * @param {Object} [param]
-     * @param {number} [param.maxAge]
-     * @returns {Promise<JsonWebKeySet>}
-     */
-    async getJwks(param) {
-        if (!this.#jwks) return await this.fetchJwks(param);
-
-        util.assert(util.isNull(param?.maxAge) || util.isExpiration(param.maxAge),
-            'DAPSAgent#getJwks : expected param.maxAge to be an integer greater than 0', TypeError);
-
-        const
-            age    = 1e-3 * Date.now() - this.#jwks_created,
-            maxAge = param?.maxAge ?? this.#jwks_maxAge;
-
-        return age <= maxAge && this.#jwks || await this.fetchJwks(param);
-    } // DAPSAgent#getJwks
+    } // DapsClient#getDat
 
     /**
      * @param {DynamicAttributeToken} dynamicAttributeToken
@@ -288,26 +292,97 @@ module.exports = class DAPSAgent extends EventEmitter {
      * @returns {Promise<DatPayload>}
      */
     async validateDat(dynamicAttributeToken, param) {
-        util.assert(util.isNonEmptyString(dynamicAttributeToken), 'DAPSAgent#validateDat : expected dynamicAttributeToken to be a non empty string');
+        util.assert(util.isNonEmptyString(dynamicAttributeToken), 'DapsClient#validateDat : expected dynamicAttributeToken to be a non empty string');
 
         const
             jwks   = await this.getJwks(param),
             header = decodeProtectedHeader(dynamicAttributeToken),
             jwk    = header.kid ? jwks.keys.find(entry => header.kid === entry.kid) : jwks.keys.length === 1 ? jwks.keys[0] : undefined;
 
-        util.assert(jwk, 'DAPSAgent#validateDat : jwk could not be selected');
+        util.assert(jwk, 'DapsClient#validateDat : jwk could not be selected');
 
         const
             publicKey     = await parseJwk(jwk, header.alg),
             verifyOptions = {
                 issuer:  this.#daps_url,
-                subject: this.#assertion_subject
+                subject: this.#datRequest_subject
             },
             {payload}     = await jwtVerify(dynamicAttributeToken, publicKey, verifyOptions);
 
         return payload;
-    } // DAPSAgent#validateDat
+    } // DapsClient#validateDat
+
+    createDatHttpsAgent(options) {
+        return new DatHttpsAgent(options, this);
+    } // DapsClient#createDatAgent
 
     // TODO createTlsAgent or something like that
 
-};
+} // DapsClient
+
+module.exports = DapsClient;
+
+class DatHttpsAgent extends https.Agent {
+
+    #dapsClient = null;
+
+    constructor(options, dapsClient) {
+        util.assert(dapsClient instanceof DapsClient, 'DatHttpsAgent#constructor : expected dapsClient to be a DapsClient');
+        super(options);
+        this.#dapsClient = dapsClient;
+    } // DatHttpsAgent#constructor
+
+    async addRequest(req, ...args) {
+        _delayRequestUntilSocket(req);
+        try {
+            const dat = await this.#dapsClient.getDat();
+            req.setHeader('Authorization', `Bearer ${dat}`);
+            super.addRequest(req, ...args);
+        } catch (err) {
+            req.destroy(err);
+            req.emit('error', err);
+        }
+    } // DatHttpsAgent#addRequest
+
+} // DatHttpsAgent
+
+function _delayRequestUntilSocket(request) {
+    const
+        endFunction   = request.end,
+        writeFunction = request.write,
+        endArgs       = [],
+        writeArgs     = [];
+
+    request.end = function (...args) {
+        if (request.socket) {
+            endFunction.apply(request, args);
+        } else if (!endArgs.length) {
+            endArgs.push(args);
+            request.once('socket', function () {
+                if (!writeArgs.length) {
+                    endFunction.apply(request, endArgs.shift());
+                }
+            });
+        }
+    };
+
+    request.write = function (...args) {
+        if (request.socket) {
+            writeFunction.apply(request, args);
+        } else if (writeArgs.length) {
+            writeArgs.push(args);
+        } else {
+            writeArgs.push(args);
+            request.once('socket', function () {
+                while (writeArgs.length) {
+                    writeFunction.apply(request, writeArgs.shift());
+                }
+                if (endArgs.length) {
+                    endFunction.apply(request, endArgs.shift());
+                }
+            });
+        }
+    };
+
+    return request;
+} // _delayRequestUntilSocket

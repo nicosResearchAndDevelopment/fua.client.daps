@@ -1,6 +1,7 @@
 const
     {describe, test} = require('mocha'),
     expect           = require('expect'),
+    https            = require('https'),
     DAPSClient       = require('../src/ids.client.daps.js'),
     _client          = require('./certs/client.js');
 
@@ -52,6 +53,12 @@ describe('ids.client.daps', function () {
         const jwks = await dapsClient.getJwks();
         expect(Array.isArray(jwks?.keys)).toBeTruthy();
         console.log(jwks);
+    });
+
+    test('the daps client should be able to construct a https agent', async function () {
+        const agent = dapsClient.createDatHttpsAgent({rejectUnauthorized: false});
+        expect(agent).toBeInstanceOf(https.Agent);
+        console.log(agent);
     });
 
 }); // describe
