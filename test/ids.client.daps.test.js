@@ -10,6 +10,8 @@ const
 
 // REM: node .\app\nrd-testbed\ec\ids\src\scripts\setup.omejdn-daps.js add-client --load .\lib\ids\ids.client.daps\test\certs\client.js
 
+// REM : JLA ::: node C:\fua\DEVL\js\app\nrd-testbed\ec\ids\src\scripts\setup.omejdn-daps.js add-client --load C:\fua\DEVL\js\lib\ids\ids.client.daps\test\certs\client.js
+
 describe('ids.client.daps', function () {
 
     this.timeout(10e3);
@@ -73,7 +75,7 @@ describe('ids.client.daps', function () {
                 resolve(req.headers);
             });
             server.listen(8081);
-            fetch('https://localhost:8081', {
+            fetch('https://localhost:8081', { // REM : omejdn-DAPS
                 agent: datAgent
             }).catch(reject);
         });
