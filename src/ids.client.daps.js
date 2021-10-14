@@ -312,6 +312,14 @@ class DapsClient extends EventEmitter {
         return payload;
     } // DapsClient#validateDat
 
+    /**
+     * @param {object} [options]
+     * @returns {DatHttpsAgent}
+     * @see https://nodejs.org/api/https.html#https_new_agent_options HTTPS - new Agent
+     * @see https://nodejs.org/api/http.html#http_new_agent_options HTTP - new Agent
+     * @see https://nodejs.org/api/net.html#net_socket_connect_options_connectlistener NET - socket.connect
+     * @see https://nodejs.org/api/tls.html#tls_tls_connect_options_callback TLS - tls.connect
+     */
     createDatHttpsAgent(options) {
         return new DatHttpsAgent(options, this);
     } // DapsClient#createDatAgent
@@ -326,12 +334,22 @@ class DatHttpsAgent extends https.Agent {
 
     #dapsClient = null;
 
+    /**
+     * @param {object} options
+     * @param {DapsClient} dapsClient
+     * @see https://nodejs.org/api/https.html#https_new_agent_options HTTPS - new Agent
+     */
     constructor(options, dapsClient) {
         util.assert(dapsClient instanceof DapsClient, 'DatHttpsAgent#constructor : expected dapsClient to be a DapsClient');
         super(options);
         this.#dapsClient = dapsClient;
     } // DatHttpsAgent#constructor
 
+    /**
+     * @param {module:http.OutgoingMessage} req
+     * @param {...any} args
+     * @returns {Promise<void>}
+     */
     async addRequest(req, ...args) {
         _delayRequestUntilSocket(req);
         try {
@@ -346,6 +364,10 @@ class DatHttpsAgent extends https.Agent {
 
 } // DatHttpsAgent
 
+/**
+ * @param {module:http.OutgoingMessage} request
+ * @returns {module:http.OutgoingMessage}
+ */
 function _delayRequestUntilSocket(request) {
     const
         endFunction   = request.end,
