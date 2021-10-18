@@ -303,10 +303,7 @@ class DapsClient extends EventEmitter {
 
         const
             publicKey     = await parseJwk(jwk, header.alg),
-            verifyOptions = {
-                issuer:  this.#daps_url,
-                subject: this.#datRequest_subject
-            },
+            verifyOptions = {issuer: this.#daps_url},
             {payload}     = await jwtVerify(dynamicAttributeToken, publicKey, verifyOptions);
 
         return payload;
