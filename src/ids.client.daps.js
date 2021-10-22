@@ -53,13 +53,13 @@ class DapsClient extends EventEmitter {
 
     #jwks         = null;
     #jwks_created = 0;
-    #jwks_maxAge  = 24 * 60 * 60;
+    #jwks_maxAge  = (24 * 60 * 60);                                  // REM : 24h (twenty-four hours)
 
     #datRequest            = '';
     #datRequest_privateKey = null;
     #datRequest_algorithm  = 'RS256';
     #datRequest_subject    = '';
-    #datRequest_expiration = 5 * 60;
+    #datRequest_expiration = (5 * 60);                                // REM : 5min (five minutes)
     #datRequest_audience   = 'idsc:IDS_CONNECTORS_ALL';
     #datRequest_scope      = 'idsc:IDS_CONNECTOR_ATTRIBUTES_ALL';
 
@@ -88,7 +88,7 @@ class DapsClient extends EventEmitter {
         util.assert(util.isNull(param.requestAgent) || util.isRequestAgent(param.requestAgent),
             'DapsClient#constructor : expected param.requestAgent to be a request agent', TypeError);
 
-        super();
+        super(); // REM : EventEmitter
 
         this.#daps_url              = param.dapsUrl;
         this.#datRequest_audience   = param.dapsUrl;
@@ -97,6 +97,7 @@ class DapsClient extends EventEmitter {
         if (param.expiration) this.#datRequest_expiration = param.expiration;
         if (param.algorithm) this.#datRequest_algorithm = param.algorithm;
         if (param.requestAgent) this.#daps_httpAgent = param.requestAgent;
+
     } // DapsClient#constructor
 
     /**
@@ -149,17 +150,23 @@ class DapsClient extends EventEmitter {
             'DapsClient#createDatRequestPayload : expected param.expiration to be an integer greater than 0', TypeError);
 
         const
-            now     = 1e-3 * Date.now(),
+            now     = Math.trunc(1e-3 * Date.now()),
             payload = {
                 '@context': 'https://w3id.org/idsa/contexts/context.jsonld',
                 '@type':    'DatRequestPayload', // 'ids:DatRequestToken'
                 iss:        this.#datRequest_subject,
                 sub:        this.#datRequest_subject,
                 aud:        this.#daps_url,
-                exp:        now + (param?.expiration ?? this.#datRequest_expiration),
-                nbf:        now,
-                iat:        now
+                // TODO : DAPS-TEST : what will happen, if we put it to past?!?
+                exp: now + (param?.expiration ?? this.#datRequest_expiration),
+                // TODO : DAPS-TEST : what will happen, if we put it to future?!?
+                nbf: now,
+                iat: now
             };
+
+        if (param?.tweak_dat) {
+            payload.tweak_dat = tweak_dat;
+        } // if ()
 
         return payload;
     } // DapsClient#createDatRequestPayload
@@ -229,7 +236,8 @@ class DapsClient extends EventEmitter {
                 body:    param?.datRequestQuery ?? await this.createDatRequestQuery(param)
             };
 
-        if (!this.#daps_httpAgent) request.agent = this.#daps_httpAgent;
+        // REM : previous versn <!> if (!this.#daps_httpAgent) request.agent = this.#daps_httpAgent;
+        if (this.#daps_httpAgent) request.agent = this.#daps_httpAgent;
 
         return request;
     } // DapsClient#createDatRequest
@@ -250,17 +258,18 @@ class DapsClient extends EventEmitter {
         util.assert(response.ok, 'DapsClient#fetchDat : [' + response.status + '] ' + response.statusText);
 
         const
-            result                = await response.json(),
-            dynamicAttributeToken = result.access_token,
-            datPayload            = await this.validateDat(dynamicAttributeToken, param);
+            //result                = await response.json(),
+             xxx result     = await response.text(),
+            DAT        = result.access_token,
+            datPayload = await this.validateDat(DAT, param);
 
         util.assert(datPayload.iss === this.#daps_url, 'DapsClient#fetchDat : expected issuer of the dat to be the daps');
         util.assert(datPayload.sub === this.#datRequest_subject, 'DapsClient#fetchDat : expected subject of the dat to be the client');
 
-        this.#dat          = dynamicAttributeToken;
+        this.#dat          = DAT;
         this.#dat_issuedAt = datPayload.iss;
 
-        return dynamicAttributeToken;
+        return DAT;
     } // DapsClient#fetchDat
 
     /**
