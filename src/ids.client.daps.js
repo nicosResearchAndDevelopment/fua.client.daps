@@ -259,7 +259,7 @@ class DapsClient extends EventEmitter {
 
         const
             //result                = await response.json(),
-             xxx result     = await response.text(),
+            // xxx result     = await response.text(),
             DAT        = result.access_token,
             datPayload = await this.validateDat(DAT, param);
 
