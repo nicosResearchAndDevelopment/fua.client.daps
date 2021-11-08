@@ -20,7 +20,8 @@ const
     {SignJWT}               = require('jose/jwt/sign'),
     {jwtVerify}             = require('jose/jwt/verify'),
     {decodeProtectedHeader} = require('jose/util/decode_protected_header'),
-    {parseJwk}              = require('jose/jwk/parse');
+    {parseJwk}              = require('jose/jwk/parse')
+; // const
 
 //region >> TYPEDEF
 /**
@@ -48,7 +49,11 @@ const
 
 class DapsClient extends EventEmitter {
 
-    #daps_url       = 'http://localhost:4567';
+    #daps_url        = 'http://localhost:4567';
+    #daps_token_path = '/token';
+    #daps_jwks_path  = '/.well-known/jwks.json';
+    #daps_vc_path    = '/vc';
+
     #daps_httpAgent = null;
 
     #jwks         = null;
@@ -71,12 +76,16 @@ class DapsClient extends EventEmitter {
      * @param {Object} param
      * @param {string} param.SKIAKI
      * @param {string} param.dapsUrl
+     * @param {string} param.dapsTokenPath
+     * @param {string} param.dapsJwksPath
+     * @param {string} param.dapsVcPath
      * @param {KeyObject} param.privateKey
      * @param {string} [param.algorithm]
      * @param {number} [param.expiration]
      * @param {{addRequest: Function, createConnection: Function}} [param.requestAgent]
      */
     constructor(param) {
+
         util.assert(util.isObject(param), 'DapsClient#constructor : expected param to be an object', TypeError);
         util.assert(util.isSKIAKI(param.SKIAKI), 'DapsClient#constructor : expected param.SKIAKI to be a SKI:AKI string combination', TypeError);
         util.assert(util.isString(param.dapsUrl), 'DapsClient#constructor : expected param.dapsUrl to be a string', TypeError);
@@ -90,7 +99,11 @@ class DapsClient extends EventEmitter {
 
         super(); // REM : EventEmitter
 
-        this.#daps_url              = param.dapsUrl;
+        this.#daps_url        = param.dapsUrl;
+        this.#daps_token_path = (param.dapsTokenPath || this.#daps_token_path);
+        this.#daps_jwks_path  = (param.dapsJwksPath || this.#daps_jwks_path);
+        this.#daps_vc_path    = (param.dapsVcPath || this.#daps_vc_path);
+
         this.#datRequest_audience   = param.dapsUrl;
         this.#datRequest_subject    = param.SKIAKI;
         this.#datRequest_privateKey = param.privateKey;
@@ -106,7 +119,7 @@ class DapsClient extends EventEmitter {
      */
     async fetchJwks(param) {
         const
-            requestUrl = new URL('/.well-known/jwks.json', this.#daps_url).toString(),
+            requestUrl = new URL(this.#daps_jwks_path, this.#daps_url).toString(),
             response   = await fetch(requestUrl);
 
         util.assert(response.ok, 'DapsClient#fetchJwks : [' + response.status + '] ' + response.statusText);
@@ -228,7 +241,7 @@ class DapsClient extends EventEmitter {
             'DapsClient#createDatRequest : expected param.datRequestQuery to be a nonempty string', TypeError);
 
         const
-            requestUrl = new URL('/token', this.#daps_url).toString(),
+            requestUrl = new URL(this.#daps_token_path, this.#daps_url).toString(),
             request    = {
                 url:     requestUrl,
                 method:  'POST',
@@ -258,8 +271,8 @@ class DapsClient extends EventEmitter {
         util.assert(response.ok, 'DapsClient#fetchDat : [' + response.status + '] ' + response.statusText);
 
         const
-            //result                = await response.json(),
-            // xxx result     = await response.text(),
+            result     = await response.json(),
+            //result     = await response.text(),
             DAT        = result.access_token,
             datPayload = await this.validateDat(DAT, param);
 
@@ -267,7 +280,7 @@ class DapsClient extends EventEmitter {
         util.assert(datPayload.sub === this.#datRequest_subject, 'DapsClient#fetchDat : expected subject of the dat to be the client');
 
         this.#dat          = DAT;
-        this.#dat_issuedAt = datPayload.iss;
+        this.#dat_issuedAt = datPayload.iat;
 
         return DAT;
     } // DapsClient#fetchDat
@@ -365,7 +378,7 @@ class DatHttpsAgent extends https.Agent {
         } catch (err) {
             req.destroy(err);
             req.emit('error', err);
-        }
+        } // try
     } // DatHttpsAgent#addRequest
 
 } // DatHttpsAgent

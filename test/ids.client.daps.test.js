@@ -16,13 +16,27 @@ describe('ids.client.daps', function () {
 
     this.timeout(10e3);
 
-    let dapsClient;
+    const
+        //region DAPS
+        dapsUrl       = "http://localhost:4567",
+        dapsTokenPath = "/token",
+        dapsJwksPath  = "/.well-known/jwks.json",
+        dapsVcPath    = "/vc"
+        //endregion DAPS
+    ;
+    let
+        dapsClient
+    ;
+
     before('construct a daps client', function () {
         expect(typeof DAPSClient).toBe('function');
         dapsClient = new DAPSClient({
-            dapsUrl:    'http://localhost:4567',
-            SKIAKI:     _client.meta.SKIAKI,
-            privateKey: _client.privateKey
+            dapsUrl:       dapsUrl,
+            dapsTokenPath: dapsTokenPath,
+            dapsJwksPath:  dapsJwksPath,
+            dapsVcPath:    dapsVcPath,
+            SKIAKI:        _client.meta.SKIAKI,
+            privateKey:    _client.privateKey
         });
         expect(dapsClient).toBeInstanceOf(DAPSClient);
         console.log(dapsClient);
