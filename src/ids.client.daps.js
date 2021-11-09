@@ -1,7 +1,7 @@
 const
-    _util                   = require('@nrd/fua.core.util'),
-    {KeyObject}             = require('crypto'),
-    util                    = {
+    _util                                                            = require('@nrd/fua.core.util'),
+    {KeyObject}                                                      = require('crypto'),
+    util                                                             = {
         ..._util,
         assert: _util.Assert('ids.client.daps'),
         // isSKI:            _util.StringValidator(/^(?:[0-9a-f]{2}(?::|$)){20}(?=$)/i),
@@ -13,14 +13,15 @@ const
         isPrivateKey:     (value) => (value instanceof KeyObject) && value.type === 'private',
         isRequestAgent:   (value) => _util.isObject(value) && _util.isFunction(value.addRequest) && _util.isFunction(value.createConnection)
     },
-    EventEmitter            = require('events'),
-    {URL, URLSearchParams}  = require('url'),
-    https                   = require('https'),
-    fetch                   = require('node-fetch'),
-    {SignJWT}               = require('jose/jwt/sign'),
-    {jwtVerify}             = require('jose/jwt/verify'),
-    {decodeProtectedHeader} = require('jose/util/decode_protected_header'),
-    {parseJwk}              = require('jose/jwk/parse');
+    EventEmitter                                                     = require('events'),
+    {URL, URLSearchParams}                                           = require('url'),
+    https                                                            = require('https'),
+    fetch                                                            = require('node-fetch'),
+    // {SignJWT}               = require('jose/jwt/sign'), // jose@3.x
+    // {jwtVerify}             = require('jose/jwt/verify'), // jose@3.x
+    // {decodeProtectedHeader} = require('jose/util/decode_protected_header'), // jose@3.x
+    // {parseJwk}                                             = require('jose/jwk/parse'), // jose@3.x
+    {SignJWT, jwtVerify, decodeProtectedHeader, importJWK: parseJwk} = require('jose'); // jose@4.x
 
 //region >> TYPEDEF
 /**
@@ -258,8 +259,7 @@ class DapsClient extends EventEmitter {
         util.assert(response.ok, 'DapsClient#fetchDat : [' + response.status + '] ' + response.statusText);
 
         const
-            //result                = await response.json(),
-            // xxx result     = await response.text(),
+            result     = await response.json(),
             DAT        = result.access_token,
             datPayload = await this.validateDat(DAT, param);
 

@@ -9,7 +9,7 @@
   "dependencies": {
     "@nrd/fua.core.util": "1.0.0",
     "node-fetch": "^2.6.2",
-    "jose": "^3.14.4"
+    "jose": "^4.2.0"
   },
   "devDependencies": {
     "mocha": "^8.2.1",
