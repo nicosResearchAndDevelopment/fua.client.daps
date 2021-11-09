@@ -265,6 +265,7 @@ class DapsClient extends EventEmitter {
             response = await fetch(request.url, request)
         ;
 
+
         util.assert(response.ok, 'DapsClient#fetchDat : [' + response.status + '] ' + response.statusText);
 
         const
