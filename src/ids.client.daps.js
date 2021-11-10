@@ -116,7 +116,8 @@ class DapsClient extends EventEmitter {
     async fetchJwks(param) {
         const
             requestUrl = new URL(this.#daps_jwks_path, this.#daps_url).toString(),
-            response   = await fetch(requestUrl);
+            response   = await fetch(requestUrl, {agent: this.#daps_httpAgent})
+        ;
 
         util.assert(response.ok, 'DapsClient#fetchJwks : [' + response.status + '] ' + response.statusText);
 
@@ -260,19 +261,20 @@ class DapsClient extends EventEmitter {
      * @returns {Promise<DynamicAttributeToken>}
      */
     async fetchDat(param) {
+
         const
             request  = await this.createDatRequest(param),
             response = await fetch(request.url, request)
         ;
 
-
         util.assert(response.ok, 'DapsClient#fetchDat : [' + response.status + '] ' + response.statusText);
 
         const
-            result     = await response.json(),
-            //result     = await response.text(),
-            DAT        = result.access_token,
-            datPayload = await this.validateDat(DAT, param);
+            //result     = await response.json(),
+            DAT        = await response.text(),
+            //DAT        = result.access_token,
+            datPayload = await this.validateDat(DAT, param)
+        ;
 
         util.assert(datPayload.iss === this.#daps_url, 'DapsClient#fetchDat : expected issuer of the dat to be the daps');
         util.assert(datPayload.sub === this.#datRequest_subject, 'DapsClient#fetchDat : expected subject of the dat to be the client');
@@ -317,14 +319,17 @@ class DapsClient extends EventEmitter {
         const
             jwks   = await this.getJwks(param),
             header = decodeProtectedHeader(dynamicAttributeToken),
-            jwk    = header.kid ? jwks.keys.find(entry => header.kid === entry.kid) : jwks.keys.length === 1 ? jwks.keys[0] : undefined;
+            jwk    = ((header.kid) ? jwks.keys.find(entry => header.kid === entry.kid) : jwks.keys.length === 1 ? jwks.keys[0] : undefined)
+        ;
 
         util.assert(jwk, 'DapsClient#validateDat : jwk could not be selected');
 
         const
             publicKey     = await parseJwk(jwk, header.alg),
-            verifyOptions = {issuer: this.#daps_url},
-            {payload}     = await jwtVerify(dynamicAttributeToken, publicKey, verifyOptions);
+            //verifyOptions = {issuer: this.#daps_url},
+            verifyOptions = {iss: this.#daps_url},
+            {payload}     = await jwtVerify(dynamicAttributeToken, publicKey, verifyOptions)
+        ;
 
         return payload;
     } // DapsClient#validateDat
