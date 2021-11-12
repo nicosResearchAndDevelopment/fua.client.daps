@@ -46,61 +46,61 @@ const
  * @typedef {{keys: Array<JsonWebKey>}} JsonWebKeySet
  * @see https://datatracker.ietf.org/doc/html/rfc7517#section-5 JWK Set Format
  */
-//endregion >> TYPEDEF
+    //endregion >> TYPEDEF
 
-//region fn
+    //region fn
 
-//async function buildDapsRegister(register, requestAgent) {
-//
-//    try {
-//        for (const [key, value] of Object.entries(register)) {
-//            //console.log(`${key}: ${value}`);
-//            if (register.default)
-//                throw(new Error(`ids.client.daps : buildDapsRegister : default already exists.`));
-//            if (!value.requestAgent) {
-//                if (value.http_agent_options) {
-//                    value.requestAgent = new https.Agent({
-//                        key:                register.http_agent_options.key,
-//                        cert:               register.http_agent_options.cert,
-//                        ca:                 register.http_agent_options.ca,
-//                        requestCert:        register.http_agent_options.requestCert,
-//                        rejectUnauthorized: register.http_agent_options.rejectUnauthorized
-//                    });
-//                } else if (requestAgent) {
-//                    value.requestAgent = requestAgent;
-//                } else {
-//                    value.requestAgent = undefined;
-//                } // if ()
-//            } // if ()
-//
-//            const
-//                requestUrl = new URL(value.jwksPath, key).toString(),
-//                response   = await fetch(requestUrl, {agent: value.requestAgent})
-//            ;
-//
-//            util.assert(response.ok, 'DapsClient#fetchJwks : [' + response.status + '] ' + response.statusText);
-//
-//            const jwks = await response.json();
-//
-//            util.assert(util.isArray(jwks?.keys), 'DapsClient#fetchJwks : expected jwks to have a keys array');
-//            util.freezeAllProp(jwks, Infinity);
-//            value.jwks         = jwks;
-//            value.jwks_created = 1e-3 * Date.now();
-//
-//            if (value.default) {
-//                register['default'] = value;
-//            } // if ()
-//
-//        } // for()
-//
-//        Object.freeze(register);
-//        return register;
-//    } catch (jex) {
-//        throw(jex);
-//    } // try
-//} // buildDapsRegister()
+    //async function buildDapsRegister(register, requestAgent) {
+    //
+    //    try {
+    //        for (const [key, value] of Object.entries(register)) {
+    //            //console.log(`${key}: ${value}`);
+    //            if (register.default)
+    //                throw(new Error(`ids.client.daps : buildDapsRegister : default already exists.`));
+    //            if (!value.requestAgent) {
+    //                if (value.http_agent_options) {
+    //                    value.requestAgent = new https.Agent({
+    //                        key:                register.http_agent_options.key,
+    //                        cert:               register.http_agent_options.cert,
+    //                        ca:                 register.http_agent_options.ca,
+    //                        requestCert:        register.http_agent_options.requestCert,
+    //                        rejectUnauthorized: register.http_agent_options.rejectUnauthorized
+    //                    });
+    //                } else if (requestAgent) {
+    //                    value.requestAgent = requestAgent;
+    //                } else {
+    //                    value.requestAgent = undefined;
+    //                } // if ()
+    //            } // if ()
+    //
+    //            const
+    //                requestUrl = new URL(value.jwksPath, key).toString(),
+    //                response   = await fetch(requestUrl, {agent: value.requestAgent})
+    //            ;
+    //
+    //            util.assert(response.ok, 'DapsClient#fetchJwks : [' + response.status + '] ' + response.statusText);
+    //
+    //            const jwks = await response.json();
+    //
+    //            util.assert(util.isArray(jwks?.keys), 'DapsClient#fetchJwks : expected jwks to have a keys array');
+    //            util.freezeAllProp(jwks, Infinity);
+    //            value.jwks         = jwks;
+    //            value.jwks_created = 1e-3 * Date.now();
+    //
+    //            if (value.default) {
+    //                register['default'] = value;
+    //            } // if ()
+    //
+    //        } // for()
+    //
+    //        Object.freeze(register);
+    //        return register;
+    //    } catch (jex) {
+    //        throw(jex);
+    //    } // try
+    //} // buildDapsRegister()
 
-//endregion fn
+    //endregion fn
 
 class DapsClient extends EventEmitter {
 
@@ -123,6 +123,9 @@ class DapsClient extends EventEmitter {
     #datRequest_expiration = (5 * 60);                                // REM : 5min (five minutes)
     #datRequest_audience   = 'idsc:IDS_CONNECTORS_ALL';
     #datRequest_scope      = 'idsc:IDS_CONNECTOR_ATTRIBUTES_ALL';
+
+    #tweak_DAT_custom          = false;
+    #tweak_DAT_custom_max_size = 1000; // REM : kB
 
     #dat             = '';
     #dat_issuedAt    = 0;
@@ -164,6 +167,14 @@ class DapsClient extends EventEmitter {
         if (param.algorithm) this.#datRequest_algorithm = param.algorithm;
         if (param.requestAgent) this.#daps_httpAgent = param.requestAgent;
 
+        //region custom
+        this.#tweak_DAT_custom          = (param.tweak_DAT_custom || this.#tweak_DAT_custom);
+        this.#tweak_DAT_custom_max_size = (param.tweak_DAT_custom_max_size || this.#tweak_DAT_custom_max_size);
+        //if (this.#tweak_DAT_custom) {
+        //
+        //} // if ()
+        //endregion custom
+
         //this.#daps_register = buildDapsRegister(param.daps_register, this.#daps_httpAgent);
 
     } // DapsClient#constructor
@@ -173,6 +184,7 @@ class DapsClient extends EventEmitter {
      * @returns {Promise<JsonWebKeySet>}
      */
     async fetchJwks(param) {
+
         const
             requestUrl = new URL(this.#daps_jwks_path, this.#daps_url).toString(),
             response   = await fetch(requestUrl, {agent: this.#daps_httpAgent})
@@ -215,6 +227,7 @@ class DapsClient extends EventEmitter {
      * @returns {Promise<DatRequestPayload>}
      */
     async createDatRequestPayload(param) {
+
         util.assert(util.isNull(param?.expiration) || util.isExpiration(param.expiration),
             'DapsClient#createDatRequestPayload : expected param.expiration to be an integer greater than 0', TypeError);
 
@@ -231,10 +244,25 @@ class DapsClient extends EventEmitter {
                 // TODO : DAPS-TEST : what will happen, if we put it to future?!?
                 nbf: now,
                 iat: now
-            };
+            }
+        ; // const
+
+        //region custom
+        if (this.#tweak_DAT_custom && param?.custom) {
+            let
+                custom = JSON.stringify(param.custom)
+            ;
+            if (custom.length < this.#tweak_DAT_custom_max_size) {
+                payload.custom = JSON.parse(custom);
+            } else {
+                payload.custom = undefined;
+                throw(new Error(`too long`));
+            } // if ()
+        } // if ()
+        //endregion custom
 
         if (param?.tweak_dat) {
-            payload.tweak_dat = tweak_dat;
+            payload.tweak_dat = JSON.parse(JSON.stringify(param.tweak_dat));
         } // if ()
 
         return payload;
