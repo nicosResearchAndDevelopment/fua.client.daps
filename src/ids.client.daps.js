@@ -21,7 +21,8 @@ const
     // {jwtVerify}             = require('jose/jwt/verify'), // jose@3.x
     // {decodeProtectedHeader} = require('jose/util/decode_protected_header'), // jose@3.x
     // {parseJwk}                                             = require('jose/jwk/parse'), // jose@3.x
-    {SignJWT, jwtVerify, decodeProtectedHeader, importJWK: parseJwk} = require('jose'); // jose@4.x
+    {SignJWT, jwtVerify, decodeProtectedHeader, importJWK: parseJwk} = require('jose')
+; // const
 
 //region >> TYPEDEF
 /**
@@ -45,10 +46,65 @@ const
  * @typedef {{keys: Array<JsonWebKey>}} JsonWebKeySet
  * @see https://datatracker.ietf.org/doc/html/rfc7517#section-5 JWK Set Format
  */
-    //endregion >> TYPEDEF
+//endregion >> TYPEDEF
+
+//region fn
+
+//async function buildDapsRegister(register, requestAgent) {
+//
+//    try {
+//        for (const [key, value] of Object.entries(register)) {
+//            //console.log(`${key}: ${value}`);
+//            if (register.default)
+//                throw(new Error(`ids.client.daps : buildDapsRegister : default already exists.`));
+//            if (!value.requestAgent) {
+//                if (value.http_agent_options) {
+//                    value.requestAgent = new https.Agent({
+//                        key:                register.http_agent_options.key,
+//                        cert:               register.http_agent_options.cert,
+//                        ca:                 register.http_agent_options.ca,
+//                        requestCert:        register.http_agent_options.requestCert,
+//                        rejectUnauthorized: register.http_agent_options.rejectUnauthorized
+//                    });
+//                } else if (requestAgent) {
+//                    value.requestAgent = requestAgent;
+//                } else {
+//                    value.requestAgent = undefined;
+//                } // if ()
+//            } // if ()
+//
+//            const
+//                requestUrl = new URL(value.jwksPath, key).toString(),
+//                response   = await fetch(requestUrl, {agent: value.requestAgent})
+//            ;
+//
+//            util.assert(response.ok, 'DapsClient#fetchJwks : [' + response.status + '] ' + response.statusText);
+//
+//            const jwks = await response.json();
+//
+//            util.assert(util.isArray(jwks?.keys), 'DapsClient#fetchJwks : expected jwks to have a keys array');
+//            util.freezeAllProp(jwks, Infinity);
+//            value.jwks         = jwks;
+//            value.jwks_created = 1e-3 * Date.now();
+//
+//            if (value.default) {
+//                register['default'] = value;
+//            } // if ()
+//
+//        } // for()
+//
+//        Object.freeze(register);
+//        return register;
+//    } catch (jex) {
+//        throw(jex);
+//    } // try
+//} // buildDapsRegister()
+
+//endregion fn
 
 class DapsClient extends EventEmitter {
 
+    #daps_register;
     #daps_url        = 'http://localhost:4567';
     #daps_token_path = '/token';
     #daps_jwks_path  = '/.well-known/jwks.json';
@@ -82,6 +138,7 @@ class DapsClient extends EventEmitter {
      * @param {{addRequest: Function, createConnection: Function}} [param.requestAgent]
      */
     constructor(param) {
+
         util.assert(util.isObject(param), 'DapsClient#constructor : expected param to be an object', TypeError);
         util.assert(util.isSKIAKI(param.SKIAKI), 'DapsClient#constructor : expected param.SKIAKI to be a SKI:AKI string combination', TypeError);
         util.assert(util.isString(param.dapsUrl), 'DapsClient#constructor : expected param.dapsUrl to be a string', TypeError);
@@ -106,6 +163,8 @@ class DapsClient extends EventEmitter {
         if (param.expiration) this.#datRequest_expiration = param.expiration;
         if (param.algorithm) this.#datRequest_algorithm = param.algorithm;
         if (param.requestAgent) this.#daps_httpAgent = param.requestAgent;
+
+        //this.#daps_register = buildDapsRegister(param.daps_register, this.#daps_httpAgent);
 
     } // DapsClient#constructor
 
@@ -270,9 +329,9 @@ class DapsClient extends EventEmitter {
         util.assert(response.ok, 'DapsClient#fetchDat : [' + response.status + '] ' + response.statusText);
 
         const
-             result     = await response.json(),
+            result     = await response.json(),
             //DAT        = await response.text(),
-             DAT        = result.access_token,
+            DAT        = result.access_token,
             datPayload = await this.validateDat(DAT, param)
         ;
 
