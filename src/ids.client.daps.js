@@ -232,7 +232,9 @@ class DapsClient extends EventEmitter {
             'DapsClient#createDatRequestPayload : expected param.expiration to be an integer greater than 0', TypeError);
 
         const
-            now     = Math.trunc(1e-3 * Date.now()),
+            now     = Math.trunc(1e-3 * Date.now())
+        ;
+        let
             payload = {
                 '@context': 'https://w3id.org/idsa/contexts/context.jsonld',
                 '@type':    'DatRequestPayload', // 'ids:DatRequestToken'
@@ -248,9 +250,9 @@ class DapsClient extends EventEmitter {
         ; // const
 
         //region custom
-        if (this.#tweak_DAT_custom && param?.custom) {
+        if (this.#tweak_DAT_custom) {
             let
-                custom = JSON.stringify(param.custom)
+                custom = JSON.stringify(this.#tweak_DAT_custom)
             ;
             if (custom.length < this.#tweak_DAT_custom_max_size) {
                 payload.custom = JSON.parse(custom);
