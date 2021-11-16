@@ -266,7 +266,7 @@ class DapsClient extends EventEmitter {
         if (param?.tweak_dat) {
             payload.tweak_dat = JSON.parse(JSON.stringify(param.tweak_dat));
         } // if ()
-
+        //console.log(payload);
         return payload;
     } // DapsClient#createDatRequestPayload
 
