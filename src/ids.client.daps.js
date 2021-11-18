@@ -193,7 +193,8 @@ class DapsClient extends EventEmitter {
         util.assert(response.ok, 'DapsClient#fetchJwks : [' + response.status + '] ' + response.statusText);
 
         const
-            jwks = await response.json();
+            jwks = await response.json()
+        ;
 
         util.assert(util.isArray(jwks?.keys), 'DapsClient#fetchJwks : expected jwks to have a keys array');
         util.freezeAllProp(jwks, Infinity);
