@@ -255,7 +255,7 @@ class DapsClient extends EventEmitter {
             let
                 custom = JSON.stringify(this.#tweak_DAT_custom)
             ;
-            if (custom.length < this.#tweak_DAT_custom_max_size) {
+            if (true || (custom.length < this.#tweak_DAT_custom_max_size)) {
                 payload.custom = JSON.parse(custom);
             } else {
                 payload.custom = undefined;
