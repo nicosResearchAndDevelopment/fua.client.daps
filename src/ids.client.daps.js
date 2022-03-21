@@ -1,6 +1,13 @@
 const
-    _util                                                            = require('@nrd/fua.core.util'),
     {KeyObject}                                                      = require('crypto'),
+    https                                                            = require('https'),
+    {URL, URLSearchParams}                                           = require('url'),
+    EventEmitter                                                     = require('events'),
+    //
+    fetch                                                            = require('node-fetch'),
+    {SignJWT, jwtVerify, decodeProtectedHeader, importJWK: parseJwk} = require('jose'),
+    //
+    _util                                                            = require('@nrd/fua.core.util'),
     util                                                             = {
         ..._util,
         assert: _util.Assert('ids.client.daps'),
@@ -9,19 +16,14 @@ const
         // isSKIAKI:            _util.StringValidator(/^(?:[0-9a-f]{2}(?::|$)){20}(?=$):keyid:(?:[0-9a-f]{2}(?::|$)){20}(?=$)/i),
         isSKIAKI:         _util.StringValidator(/^(?:[0-9a-f]{2}:){20}keyid(?::[0-9a-f]{2}){20}$/i),
         isNonEmptyString: _util.StringValidator(/^\S+$/),
-        isExpiration:     (value) => _util.isInteger(value) && value > 0,
-        isPrivateKey:     (value) => (value instanceof KeyObject) && value.type === 'private',
-        isRequestAgent:   (value) => _util.isObject(value) && _util.isFunction(value.addRequest) && _util.isFunction(value.createConnection)
-    },
-    EventEmitter                                                     = require('events'),
-    {URL, URLSearchParams}                                           = require('url'),
-    https                                                            = require('https'),
-    fetch                                                            = require('node-fetch'),
+        isExpiration:     (value) => (_util.isInteger(value) && (value > 0)),
+        isPrivateKey:     (value) => ((value instanceof KeyObject) && (value.type === 'private')),
+        isRequestAgent:   (value) => (_util.isObject(value) && _util.isFunction(value.addRequest) && _util.isFunction(value.createConnection))
+    }
     // {SignJWT}               = require('jose/jwt/sign'), // jose@3.x
     // {jwtVerify}             = require('jose/jwt/verify'), // jose@3.x
     // {decodeProtectedHeader} = require('jose/util/decode_protected_header'), // jose@3.x
     // {parseJwk}                                             = require('jose/jwk/parse'), // jose@3.x
-    {SignJWT, jwtVerify, decodeProtectedHeader, importJWK: parseJwk} = require('jose')
 ; // const
 
 //region >> TYPEDEF
