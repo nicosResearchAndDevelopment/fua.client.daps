@@ -367,6 +367,7 @@ class DapsClient extends EventEmitter {
             datPayload = await this.validateDat(DAT, param)
         ;
 
+        // TODO:TBC: muss dieser Vergleich wirklich machen?!? Monika fragen...
         util.assert(datPayload.iss === this.#daps_url, 'DapsClient#fetchDat : expected issuer of the dat to be the daps');
         util.assert(datPayload.sub === this.#datRequest_subject, 'DapsClient#fetchDat : expected subject of the dat to be the client');
 
