@@ -126,6 +126,7 @@ class DapsClient extends EventEmitter {
     #datRequest_audience   = 'idsc:IDS_CONNECTORS_ALL';
     #datRequest_scope      = 'idsc:IDS_CONNECTOR_ATTRIBUTES_ALL';
 
+    #tweak_DAT                 = false;
     #tweak_DAT_custom          = false;
     #tweak_DAT_custom_max_size = 1000; // REM : kB
 
@@ -169,6 +170,7 @@ class DapsClient extends EventEmitter {
         if (param.algorithm) this.#datRequest_algorithm = param.algorithm;
         if (param.requestAgent) this.#daps_httpAgent = param.requestAgent;
 
+        this.#tweak_DAT                 = (param.tweak_DAT || this.#tweak_DAT);
         //region custom
         this.#tweak_DAT_custom          = (param.tweak_DAT_custom || this.#tweak_DAT_custom);
         this.#tweak_DAT_custom_max_size = (param.tweak_DAT_custom_max_size || this.#tweak_DAT_custom_max_size);
@@ -266,10 +268,10 @@ class DapsClient extends EventEmitter {
         } // if ()
         //endregion custom
 
-        if (param?.tweak_dat) {
+        if (this.#tweak_DAT && param?.tweak_dat) {
             payload.tweak_dat = JSON.parse(JSON.stringify(param.tweak_dat));
         } // if ()
-        //console.log(payload);
+
         return payload;
     } // DapsClient#createDatRequestPayload
 
