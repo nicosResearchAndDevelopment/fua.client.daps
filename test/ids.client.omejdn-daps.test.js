@@ -2,6 +2,7 @@ const
     {describe, test} = require('mocha'),
     expect           = require('expect'),
     path             = require('path'),
+    http             = require('http'),
     https            = require('https'),
     fetch            = require('node-fetch'),
     jose             = require('jose'),
@@ -11,20 +12,22 @@ const
         tlsServer: require(path.join(process.env.FUA_JS_APP, 'nrd-ca/resources/nrd-testbed/ec/ids/component/alice/tls-server/server.js'))
     },
     clientParam      = {
-        dapsUrl:       'https://nrd-daps.nicos-rd.com:8082',
+        dapsUrl: 'http://localhost:4567',
+        // dapsUrl:       'https://nrd-daps.nicos-rd.com:8082',
         dapsTokenPath: '/auth/token',
         dapsJwksPath:  '/auth/jwks.json',
         // dapsUrl:       'https://nrd-daps.nicos-rd.com:8082/auth',
         // dapsTokenPath: '/token',
         // dapsJwksPath:  '/jwks.json',
-        dapsVcPath:   '/vc',
-        SKIAKI:       clientConfig.connector.meta.SKIAKI,
-        privateKey:   clientConfig.connector.privateKey,
-        requestAgent: new https.Agent({
-            ca:   clientConfig.tlsServer.ca,
-            key:  clientConfig.tlsServer.key,
-            cert: clientConfig.tlsServer.cert
-        })
+        dapsVcPath: '/vc',
+        SKIAKI:     clientConfig.connector.meta.SKIAKI,
+        privateKey: clientConfig.connector.privateKey,
+        // requestAgent: new https.Agent({
+        //     ca:   clientConfig.tlsServer.ca,
+        //     key:  clientConfig.tlsServer.key,
+        //     cert: clientConfig.tlsServer.cert
+        // }),
+        requestAgent: new http.Agent()
     };
 
 describe('ids.client.omejdn-daps', function () {
@@ -69,9 +72,9 @@ describe('ids.client.omejdn-daps', function () {
                     '@context': 'https://w3id.org/idsa/contexts/context.jsonld',
                     '@type':    'ids:DatRequestPayload',
                     // '@type': 'ids:DatRequestToken',
-                    iss:     clientConfig.connector.meta.SKIAKI,
-                    sub:     clientConfig.connector.meta.SKIAKI,
-                    // aud:     clientParam.dapsUrl.replace(/:\d+\//, '/') + '/auth',
+                    iss: clientConfig.connector.meta.SKIAKI,
+                    sub: clientConfig.connector.meta.SKIAKI,
+                    // aud:     clientParam.dapsUrl.replace(/:\d+/, '') + '/auth',
                     aud: 'idsc:IDS_CONNECTORS_ALL',
                     iat: issuedAt,
                     nbf: issuedAt - 60,
@@ -92,8 +95,8 @@ describe('ids.client.omejdn-daps', function () {
                 },
                 datRequest             = {
                     // url:    new URL(clientParam.dapsTokenPath, clientParam.dapsUrl).toString(),
-                    url:    clientParam.dapsUrl + clientParam.dapsTokenPath,
-                    method: 'POST',
+                    url:     clientParam.dapsUrl + clientParam.dapsTokenPath,
+                    method:  'POST',
                     headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'},
                     // headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                     // body: new URLSearchParams(datRequestBody).toString(),
