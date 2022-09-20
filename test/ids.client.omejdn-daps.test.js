@@ -12,22 +12,19 @@ const
         tlsServer: require(path.join(process.env.FUA_JS_APP, 'nrd-ca/resources/nrd-testbed/ec/ids/component/alice/tls-server/server.js'))
     },
     clientParam      = {
-        dapsUrl: 'http://localhost:4567',
-        // dapsUrl:       'https://nrd-daps.nicos-rd.com:8082',
+        // dapsUrl: 'http://localhost:4567',
+        dapsUrl:       'https://nrd-daps.nicos-rd.com:8082',
         dapsTokenPath: '/auth/token',
         dapsJwksPath:  '/auth/jwks.json',
-        // dapsUrl:       'https://nrd-daps.nicos-rd.com:8082/auth',
-        // dapsTokenPath: '/token',
-        // dapsJwksPath:  '/jwks.json',
         dapsVcPath: '/vc',
         SKIAKI:     clientConfig.connector.meta.SKIAKI,
         privateKey: clientConfig.connector.privateKey,
-        // requestAgent: new https.Agent({
-        //     ca:   clientConfig.tlsServer.ca,
-        //     key:  clientConfig.tlsServer.key,
-        //     cert: clientConfig.tlsServer.cert
-        // }),
-        requestAgent: new http.Agent()
+        requestAgent: new https.Agent({
+            ca:   clientConfig.tlsServer.ca,
+            key:  clientConfig.tlsServer.key,
+            cert: clientConfig.tlsServer.cert
+        }),
+        // requestAgent: new http.Agent()
     };
 
 describe('ids.client.omejdn-daps', function () {
@@ -67,19 +64,21 @@ describe('ids.client.omejdn-daps', function () {
 
         test('get auth token', async function () {
             const
-                issuedAt               = Math.floor(1e-3 * Date.now()),
+                issuedAt               = Math.floor(Date.now() / 1e3),
                 datRequestTokenPayload = {
                     '@context': 'https://w3id.org/idsa/contexts/context.jsonld',
-                    '@type':    'ids:DatRequestPayload',
-                    // '@type': 'ids:DatRequestToken',
-                    iss: clientConfig.connector.meta.SKIAKI,
-                    sub: clientConfig.connector.meta.SKIAKI,
+                    // '@type':    'ids:DatRequestPayload',
+                    '@type': 'ids:DatRequestToken',
+                    iss:     clientConfig.connector.meta.SKIAKI,
+                    // iss:     clientConfig.connector.meta.SKIAKI.replace(/:/g, String.fromCharCode(61498)),
+                    sub:     clientConfig.connector.meta.SKIAKI,
+                    // sub:     clientConfig.connector.meta.SKIAKI.replace(/:/g, String.fromCharCode(61498)),
                     // aud:     clientParam.dapsUrl.replace(/:\d+/, '') + '/auth',
                     aud: 'idsc:IDS_CONNECTORS_ALL',
                     iat: issuedAt,
-                    nbf: issuedAt - 60,
-                    // nbf: issuedAt,
-                    exp: issuedAt + 300
+                    // nbf: issuedAt - 60,
+                    nbf: issuedAt,
+                    exp: issuedAt + 3600
                     // exp: issuedAt + 60
                 },
                 datRequestToken        = await new jose.SignJWT(datRequestTokenPayload)
@@ -89,7 +88,7 @@ describe('ids.client.omejdn-daps', function () {
                     grant_type:            'client_credentials',
                     client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
                     client_assertion:      datRequestToken,
-                    client_id:             clientConfig.connector.meta.SKIAKI,
+                    // client_id:             clientConfig.connector.meta.SKIAKI,
                     scope:                 'idsc:IDS_CONNECTOR_ATTRIBUTES_ALL'
                     // scope:                 'ids_connector_attributes'
                 },
@@ -102,15 +101,23 @@ describe('ids.client.omejdn-daps', function () {
                     // body: new URLSearchParams(datRequestBody).toString(),
                     body: new URLSearchParams(datRequestBody),
                     // body:  Object.entries(datRequestBody).map(entry => entry.join('=')).join('&'),
+                    // body:  `grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&client_assertion=${datRequestToken}&scope=idsc:IDS_CONNECTOR_ATTRIBUTES_ALL`,
                     agent: clientParam.requestAgent
                 },
                 datResponse            = await fetch(datRequest.url, datRequest);
 
-            console.log(JSON.stringify(datRequestTokenPayload, null, 2));
-            console.log(`[${datRequest.method}] ${datRequest.url}`);
-            console.log(Object.entries(datRequest.headers).map(entry => '  - ' + entry.join(': ')).join('\n'));
-            console.log(datRequest.body.toString().split('&').join('\n&'));
-            if (!datResponse.ok) console.error(`[${datResponse.status}] ${datResponse.statusText}`);
+            console.log([
+                JSON.stringify(datRequestTokenPayload, null, 2),
+                `[${datRequest.method}] ${datRequest.url}`,
+                datRequest.headers && Object.entries(datRequest.headers).map(entry => '  - ' + entry.join(': ')).join('\n'),
+                datRequest.body.toString().split('&').join('\n&'),
+                // !datResponse.ok && `[${datResponse.status}] ${datResponse.statusText}`,
+                !datResponse.ok && JSON.stringify({
+                    status:     datResponse.status,
+                    statusText: datResponse.statusText,
+                    ...await datResponse.json()
+                }, null, 2)
+            ].filter(val => val).join('\n\n'));
 
             expect(datResponse.ok).toBeTruthy();
             console.log(await datResponse.text());
