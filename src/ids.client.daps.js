@@ -401,6 +401,16 @@ class DapsClient extends EventEmitter {
         return lifespan >= minLifespan && this.#dat || await this.fetchDat(param);
     } // DapsClient#getDat
 
+    async decodeDat(dynamicAttributeToken) {
+        util.assert(util.isNonEmptyString(dynamicAttributeToken), 'DapsClient#decodeDat : expected dynamicAttributeToken to be a non empty string');
+
+        const
+            payloadPart = token.split('.')[1],
+            payload     = JSON.parse(Buffer.from(payloadPart, 'base64'));
+
+        return payload;
+    } // DapsClient#decodeDat
+
     /**
      * @param {DynamicAttributeToken} dynamicAttributeToken
      * @param {Object} [param]
