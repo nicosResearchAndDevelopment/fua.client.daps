@@ -7,7 +7,7 @@
     "src/*"
   ],
   "dependencies": {
-    "@nrd/fua.core.util": "1.0.0",
+    "@nrd/fua.core.util": "^1.0.0",
     "node-fetch": "^2.6.2",
     "jose": "^4.2.0"
   },
