@@ -1,6 +1,8 @@
 {
-    "SKI": "AE:F9:66:98:24:F8:CD:69:71:99:A5:F4:41:54:72:A1:4B:CE:B2:FA",
-    "AKI": "keyid:E1:FD:67:6B:8F:BB:62:2C:83:59:88:34:98:6E:8E:B7:8B:88:B9:E1",
-    "SKIAKI": "AE:F9:66:98:24:F8:CD:69:71:99:A5:F4:41:54:72:A1:4B:CE:B2:FA:keyid:E1:FD:67:6B:8F:BB:62:2C:83:59:88:34:98:6E:8E:B7:8B:88:B9:E1",
-    "SKIAKI_id_leave": "AE_F9_66_98_24_F8_CD_69_71_99_A5_F4_41_54_72_A1_4B_CE_B2_FA_keyid_E1_FD_67_6B_8F_BB_62_2C_83_59_88_34_98_6E_8E_B7_8B_88_B9_E1"
+    "Issuer": "C = DE, ST = NRW, L = Muenster, O = nicos Research & Development GmbH, CN = tb, CN = ec, CN = ids, CN = ec_ids_component_ca",
+    "Subject": "C = DE, ST = NRW, L = Muenster, O = nicos Research & Development GmbH, CN = tb, CN = ec, CN = ids, CN = alice.nicos-rd.com",
+    "SKI": "58:51:6C:62:67:1F:7E:D0:BF:91:85:60:2C:61:BF:C7:72:78:BF:DD",
+    "AKI": "keyid:07:E8:AA:9F:59:23:93:EE:0D:26:0F:29:3B:53:2D:0B:98:11:46:8F",
+    "SKIAKI": "58:51:6C:62:67:1F:7E:D0:BF:91:85:60:2C:61:BF:C7:72:78:BF:DD:keyid:07:E8:AA:9F:59:23:93:EE:0D:26:0F:29:3B:53:2D:0B:98:11:46:8F",
+    "certSha256Fingerprint": "91158ec182440fa8dd0f23cfd793b03915e2a689ca008c02e2d0cb96e8888f28"
 }

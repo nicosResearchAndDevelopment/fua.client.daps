@@ -1,8 +1,10 @@
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
+const load = (filename) => fs.readFileSync(path.join(__dirname, filename));
 exports.meta = require('./server.json');
-exports.key = fs.readFileSync(path.join(__dirname, './server.key'));
+exports.key = load('./server.key');
 exports.privateKey = crypto.createPrivateKey(exports.key);
-exports.pub = fs.readFileSync(path.join(__dirname, './server.pub'));
+exports.pub = load('./server.pub');
 exports.publicKey = crypto.createPublicKey(exports.pub);
-exports.cert = fs.readFileSync(path.join(__dirname, './server.cert'));
+exports.cert = load('./server.cert');
+exports.ca = load('./server.ca');
 Object.freeze(exports);
