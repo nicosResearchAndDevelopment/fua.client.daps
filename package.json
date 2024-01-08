@@ -8,8 +8,11 @@
   ],
   "dependencies": {
     "@nrd/fua.core.util": "^1.0.0",
-    "node-fetch": "^3.3.2",
+    "node-fetch": "2.x",
     "jose": "^4.2.0"
+  },
+  "overrides": {
+    "whatswg-url": "14.x"
   },
   "devDependencies": {
     "mocha": "^8.2.1",
