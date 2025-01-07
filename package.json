@@ -1,5 +1,5 @@
 {
-  "name": "@nrd/fua.ids.client.daps",
+  "name": "@fua/client.daps",
   "version": "1.0.1",
   "description": "",
   "main": "src/ids.client.daps.js",
@@ -7,7 +7,7 @@
     "src/*"
   ],
   "dependencies": {
-    "@nrd/fua.core.util": "^1.0.0",
+    "@fua/core.util": "^1.0.0",
     "node-fetch": "2.x",
     "jose": "^4.2.0"
   },
@@ -15,8 +15,9 @@
     "whatswg-url": "14.x"
   },
   "devDependencies": {
-    "mocha": "^8.2.1",
-    "expect": "^26.6.2"
+    "expect": "26.x",
+    "mocha": "10.x",
+    "express": "^4.21.2"
   },
   "scripts": {
     "test": "mocha"
@@ -28,8 +29,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "ssh://git@git02.int.nsc.ag:10022/research/fua/ids/client.daps.git"
+    "url": "ssh://git@github.com:nicosResearchAndDevelopment/fua.client.daps.git"
   },
-  "author": "spetrac@nicos-ag.com",
-  "license": "UNLICENSED"
+  "author": "Simon Petrac <pfoerdie@gmail.com>",
+  "license": "MIT"
 }

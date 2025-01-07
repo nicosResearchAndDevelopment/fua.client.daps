@@ -7,7 +7,7 @@ const
     fetch                                                            = require('node-fetch'),
     {SignJWT, jwtVerify, decodeProtectedHeader, importJWK: parseJwk} = require('jose'),
     //
-    _util                                                            = require('@nrd/fua.core.util'),
+    _util                                                            = require('@fua/core.util'),
     util                                                             = {
         ..._util,
         assert: _util.Assert('ids.client.daps'),

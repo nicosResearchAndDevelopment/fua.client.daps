@@ -1,4 +1,4 @@
-# @nrd/fua.ids.client.daps
+# @fua/client.daps
 
 ## Links
 
